@@ -8,17 +8,30 @@ ENTRY_HDR_LGTH =		30
 FILE_HDR_ID =		b'YAMAHA-YSFC'
 BLOCK_ENTRY_ID =	b'Entr'
 
+SECTION_LETTERS = 'ABCDEFGH'
+
 catalog = {}
 
-def printEPFM(entryNumber, entryName):
-	print('%03d:' % entryNumber, entryName.split(':')[-1])
-
 def printDefault(entryNumber, entryName):
-	print('%03d:' % entryNumber, entryName)
+	print('%02d:' % (entryNumber + 1), entryName)
 
-blockTypesToPrint = ((b'EPFM',	'Performances',	printEPFM),			\
-					 (b'ESNG',	'Songs',		printDefault),		\
-					 (b'EPTN',	'Patterns',		printDefault))
+def printMaster(entryNumber, entryName):
+	print('%03d:' % (entryNumber + 1), entryName)
+
+def printPerformance(performanceNumber, entryName):
+	userBank =			int(performanceNumber / 128)
+	numberInSection =	performanceNumber % 128
+	section =			int(numberInSection / 16)
+	keyNumber =			int(performanceNumber % 16)
+	print('USR %d:%03d(%c%02d) %s' %
+		  (userBank + 1, numberInSection + 1, SECTION_LETTERS[section], keyNumber + 1,
+		   entryName.split(':')[-1]))
+
+blockTypesToPrint = ((b'ESNG',	'Songs',		printDefault),			\
+					 (b'EPTN',	'Patterns',		printDefault),			\
+					 (b'EMST',	'Masters',		printMaster),			\
+					 (b'EPFM',	'Performances',	printPerformance)		\
+					 )
 
 def printBlock(blockType):
 	blockOffset = catalog[blockType[0]]
@@ -59,15 +72,15 @@ def printMotifFile(inputStream):
 if __name__ == '__main__':
 #	print(sys.executable)
 	if len(sys.argv) == 2:
-		try:
-			fileName = sys.argv[1]
-			print('file:', fileName)
-			inputStream = open(fileName, 'rb')
-			printMotifFile(inputStream)
-		except Exception as e:
-			errorMsg = '--> ' + str(e.args[0])
-			print(errorMsg)
-			print(errorMsg, file=sys.stderr)
+#		try:
+		fileName = sys.argv[1]
+		print('file: ', fileName, '\n', sep='')
+		inputStream = open(fileName, 'rb')
+		printMotifFile(inputStream)
+#		except Exception as e:
+#			errorMsg = '--> ' + str(e.args[0])
+#			print(errorMsg)
+#			print(errorMsg, file=sys.stderr)
 		inputStream.close()
 	else:
 		print('no args')
