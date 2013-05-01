@@ -1,3 +1,4 @@
 
 syntax: glob
 *.X3A
+*.doc*
