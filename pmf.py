@@ -23,7 +23,7 @@ def printPerformance(performanceNumber, entryName):
 	numberInSection =	performanceNumber % 128
 	section =			int(numberInSection / 16)
 	keyNumber =			int(performanceNumber % 16)
-	print('USR %d:%03d(%c%02d) %s' %
+	print('USR%d:%03d(%c%02d) %s' %
 		  (userBank + 1, numberInSection + 1, SECTION_LETTERS[section], keyNumber + 1,
 		   entryName.split(':')[-1]))
 
