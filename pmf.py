@@ -1,4 +1,4 @@
-import struct, sys
+import os, struct, sys
 
 FILE_HDR_LGTH =			64
 CATALOG_ENTRY_LGTH =	 8
@@ -74,7 +74,8 @@ if __name__ == '__main__':
 	if len(sys.argv) == 2:
 #		try:
 		fileName = sys.argv[1]
-		print('file: ', fileName, '\n', sep='')
+# 		print('working directory: ', os.getcwd(), sep='')
+		print('file:              ', fileName, '\n', sep='')
 		inputStream = open(fileName, 'rb')
 		printMotifFile(inputStream)
 #		except Exception as e:
