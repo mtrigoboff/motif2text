@@ -1,16 +1,17 @@
 import os, struct, sys
 
-FILE_HDR_LGTH =			 64
-CATALOG_ENTRY_LGTH =	  8
-BLOCK_HDR_LGTH =		 12
-ENTRY_HDR_LGTH =		 30
-DMST_DATA_SIZE =		560
+FILE_HDR_LGTH =					 64
+CATALOG_ENTRY_LGTH =			  8
+BLOCK_HDR_LGTH =				 12
+ENTRY_HDR_LGTH =				  8
+ENTRY_FIXED_SIZE_DATA_LGTH =	 22
+DMST_DATA_SIZE =				560
 
-FILE_HDR_ID =			b'YAMAHA-YSFC'
-BLOCK_ENTRY_ID =		b'Entr'
-BLOCK_DATA_ID =			b'Data'
+FILE_HDR_ID =		b'YAMAHA-YSFC'
+BLOCK_ENTRY_ID =	b'Entr'
+BLOCK_DATA_ID =		b'Data'
 
-SECTION_LETTERS =		'ABCDEFGH'
+SECTION_LETTERS =	'ABCDEFGH'
 
 catalog = {}
 
@@ -23,12 +24,12 @@ class MasterTargetType:
 def printMaster(entryNumber, entryName, data):
 	targetType, target = struct.unpack('> 36x b 2x b 520x', data)
 	targetName = \
-		{MasterTargetType.MST_VOICE			: 'Voice',
-		 MasterTargetType.MST_PERFORMANCE	: 'Performance',
-		 MasterTargetType.MST_PATTERN		: 'Pattern',
-		 MasterTargetType.MST_SONG			: 'Song'} \
+		{MasterTargetType.MST_VOICE			: 'Vc',
+		 MasterTargetType.MST_PERFORMANCE	: 'Pf',
+		 MasterTargetType.MST_PATTERN		: 'Pt',
+		 MasterTargetType.MST_SONG			: 'Sg'} \
 	  [targetType]
-	print('%03d:' % (entryNumber + 1), entryName, '(%s %d)' % (targetName, target))
+	print('%03d: %-20s (%s %3d)' % (entryNumber + 1, entryName, targetName, target + 1))
 
 def printPerformance(performanceNumber, entryName, data):
 	userBank =			int(performanceNumber / 128)
@@ -59,11 +60,11 @@ def printBlock(blockType):
 	assert blockIdData == blockType.ident, blockType.ident
 	print(blockType.title)
 	for _ in range(0, nEntries):
-		entryHdr = inputStream.read(ENTRY_HDR_LGTH)
+		entryHdr = inputStream.read(ENTRY_HDR_LGTH + ENTRY_FIXED_SIZE_DATA_LGTH)
 		entryId, entryLgth, dataSize, dataOffset, entryNumber = \
 			struct.unpack('> 4s I 4x I 4x I I 2x', entryHdr)
 		assert entryId == BLOCK_ENTRY_ID, BLOCK_ENTRY_ID
-		entryStrs = inputStream.read(entryLgth - ENTRY_HDR_LGTH + 8)
+		entryStrs = inputStream.read(entryLgth - ENTRY_FIXED_SIZE_DATA_LGTH)
 		entryStrs = entryStrs.decode('ascii')
 		entryName = entryStrs.rstrip('\x00').split('\x00')[0]
 		if blockType.needsData:
