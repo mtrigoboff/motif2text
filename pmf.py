@@ -1,24 +1,36 @@
 import os, struct, sys
 
-FILE_HDR_LGTH =			64
-CATALOG_ENTRY_LGTH =	 8
-BLOCK_HDR_LGTH =		12
-ENTRY_HDR_LGTH =		30
+FILE_HDR_LGTH =			 64
+CATALOG_ENTRY_LGTH =	  8
+BLOCK_HDR_LGTH =		 12
+ENTRY_HDR_LGTH =		 30
+DMST_DATA_SIZE =		560
 
-FILE_HDR_ID =		b'YAMAHA-YSFC'
-BLOCK_ENTRY_ID =	b'Entr'
+FILE_HDR_ID =			b'YAMAHA-YSFC'
+BLOCK_ENTRY_ID =		b'Entr'
+BLOCK_DATA_ID =			b'Data'
 
-SECTION_LETTERS = 'ABCDEFGH'
+SECTION_LETTERS =		'ABCDEFGH'
 
 catalog = {}
 
-def printDefault(entryNumber, entryName):
+def printDefault(entryNumber, entryName, data):
 	print('%02d:' % (entryNumber + 1), entryName)
 
-def printMaster(entryNumber, entryName):
-	print('%03d:' % (entryNumber + 1), entryName)
+class MasterTargetType:
+	MST_VOICE, MST_PERFORMANCE, MST_PATTERN, MST_SONG = range(4)
 
-def printPerformance(performanceNumber, entryName):
+def printMaster(entryNumber, entryName, data):
+	targetType, target = struct.unpack('> 36x b 2x b 520x', data)
+	targetName = \
+		{MasterTargetType.MST_VOICE			: 'Voice',
+		 MasterTargetType.MST_PERFORMANCE	: 'Performance',
+		 MasterTargetType.MST_PATTERN		: 'Pattern',
+		 MasterTargetType.MST_SONG			: 'Song'} \
+	  [targetType]
+	print('%03d:' % (entryNumber + 1), entryName, '(%s %d)' % (targetName, target))
+
+def printPerformance(performanceNumber, entryName, data):
 	userBank =			int(performanceNumber / 128)
 	numberInSection =	performanceNumber % 128
 	section =			int(numberInSection / 16)
@@ -27,27 +39,44 @@ def printPerformance(performanceNumber, entryName):
 		  (userBank + 1, numberInSection + 1, SECTION_LETTERS[section], keyNumber + 1,
 		   entryName.split(':')[-1]))
 
-blockTypesToPrint = ((b'ESNG',	'Songs',		printDefault),			\
-					 (b'EPTN',	'Patterns',		printDefault),			\
-					 (b'EMST',	'Masters',		printMaster),			\
-					 (b'EPFM',	'Performances',	printPerformance)		\
-					 )
+class BlockType:
+	def __init__(self, ident, title, printFn, needsData):
+		self.ident = ident
+		self.title = title
+		self.printFn = printFn
+		self.needsData = needsData
+
+blockTypes = (BlockType(b'ESNG',	'Songs',		printDefault,		False),			\
+			  BlockType(b'EPTN',	'Patterns',		printDefault,		False),			\
+			  BlockType(b'EMST',	'Masters',		printMaster,		True),			\
+			  BlockType(b'EPFM',	'Performances',	printPerformance,	False)			\
+			  )
 
 def printBlock(blockType):
-	blockOffset = catalog[blockType[0]]
-	inputStream.seek(blockOffset)
+	inputStream.seek(catalog[blockType.ident])
 	blockHdr = inputStream.read(BLOCK_HDR_LGTH)
 	blockIdData, nEntries = struct.unpack('> 4s 4x I', blockHdr)
-	assert blockIdData == blockType[0], blockType[0]
-	print(blockType[1])
+	assert blockIdData == blockType.ident, blockType.ident
+	print(blockType.title)
 	for _ in range(0, nEntries):
 		entryHdr = inputStream.read(ENTRY_HDR_LGTH)
-		entryId, entryLgth, entryNumber = struct.unpack('> 4s I 16x I 2x', entryHdr)
+		entryId, entryLgth, dataSize, dataOffset, entryNumber = \
+			struct.unpack('> 4s I 4x I 4x I I 2x', entryHdr)
 		assert entryId == BLOCK_ENTRY_ID, BLOCK_ENTRY_ID
 		entryStrs = inputStream.read(entryLgth - ENTRY_HDR_LGTH + 8)
 		entryStrs = entryStrs.decode('ascii')
 		entryName = entryStrs.rstrip('\x00').split('\x00')[0]
-		blockType[2](entryNumber, entryName)	
+		if blockType.needsData:
+			entryPosn = inputStream.tell()
+			dataIdent = bytearray(blockType.ident)
+			dataIdent[0] = ord('D')
+			dataIdent = bytes(dataIdent)
+			inputStream.seek(catalog[dataIdent] + dataOffset)
+			blockData = inputStream.read(dataSize + 8)
+			inputStream.seek(entryPosn)
+		else:
+			blockData = None
+		blockType.printFn(entryNumber, entryName, blockData)	
 	print()
 
 def printMotifFile(inputStream):
@@ -65,7 +94,7 @@ def printMotifFile(inputStream):
 		entryId, offset = struct.unpack('> 4s I', entry)
 		catalog[entryId] = offset
 
-	for blockType in blockTypesToPrint:
+	for blockType in blockTypes:
 		printBlock(blockType)
 
 # when invoked from the command line
@@ -83,5 +112,6 @@ if __name__ == '__main__':
 #			print(errorMsg)
 #			print(errorMsg, file=sys.stderr)
 		inputStream.close()
+
 	else:
 		print('no args')
