@@ -1,4 +1,4 @@
-import os, struct, sys
+import struct, sys
 
 FILE_HDR_LGTH =					 64
 CATALOG_ENTRY_LGTH =			  8
@@ -11,34 +11,43 @@ FILE_HDR_ID =		b'YAMAHA-YSFC'
 BLOCK_ENTRY_ID =	b'Entr'
 BLOCK_DATA_ID =		b'Data'
 
-SECTION_LETTERS =	'ABCDEFGH'
+BANKS = ('PRE1', 'PRE2', 'PRE3', 'PRE4', 'PRE5', 'PRE6', 'PRE7', 'PRE8',
+		 'USR1', 'USR2', 'USR3', 'USR4', 'GM',   'GMDR', 'PDR',  'UDR')
 
 catalog = {}
+
+def bankSectionNumberStr(bank, item):
+	number =			item & 0x7f
+	section =			number >> 4
+	itemInSection =		number & 0x0f
+	return '%s:%03d(%c%02d)' % (BANKS[bank], number + 1, ord('A') + section, itemInSection + 1)
 
 def printDefault(entryNumber, entryName, data):
 	print('%02d:' % (entryNumber + 1), entryName)
 
 class MasterTargetType:
 	MST_VOICE, MST_PERFORMANCE, MST_PATTERN, MST_SONG = range(4)
+		# enum corresponds to how these types are defined in the Motif file
 
 def printMaster(entryNumber, entryName, data):
-	targetType, target = struct.unpack('> 36x b 2x b 520x', data)
-	targetName = \
-		{MasterTargetType.MST_VOICE			: 'Vc',
-		 MasterTargetType.MST_PERFORMANCE	: 'Pf',
-		 MasterTargetType.MST_PATTERN		: 'Pt',
-		 MasterTargetType.MST_SONG			: 'Sg'} \
-	  [targetType]
-	print('%03d: %-20s (%s %3d)' % (entryNumber + 1, entryName, targetName, target + 1))
+	targetType, targetBank, target = struct.unpack('> 36x B x B B 520x', data)
+	targetBank &= 0x0F		# guess about keeping bank in range
+	print('%03d: %-20s ' % (entryNumber + 1, entryName), end='')
+	if targetType == MasterTargetType.MST_VOICE:
+		print('Vc', bankSectionNumberStr(targetBank, target))
+	elif targetType == MasterTargetType.MST_PERFORMANCE:
+		print('Pf', bankSectionNumberStr(targetBank + 8, target))
+			# targetBank + 8 because Performances start in bank USR1
+	else:
+		if targetType == MasterTargetType.MST_PATTERN:	
+			print('Pt', end='')
+		else: # targetType == MasterTargetType.MST_SONG
+			print('Sg', end='')
+		print(' %02d' % (target + 1))
 
 def printPerformance(performanceNumber, entryName, data):
-	userBank =			int(performanceNumber / 128)
-	numberInSection =	performanceNumber % 128
-	section =			int(numberInSection / 16)
-	keyNumber =			int(performanceNumber % 16)
-	print('USR%d:%03d(%c%02d) %s' %
-		  (userBank + 1, numberInSection + 1, SECTION_LETTERS[section], keyNumber + 1,
-		   entryName.split(':')[-1]))
+	print('%s %s' % (bankSectionNumberStr(((performanceNumber & 0x0780) >> 7) + 8, performanceNumber & 0x007F),
+					 entryName.split(':')[-1]))
 
 class BlockType:
 	def __init__(self, ident, title, printFn, needsData):
@@ -54,6 +63,8 @@ blockTypes = (BlockType(b'ESNG',	'Songs',		printDefault,		False),			\
 			  )
 
 def printBlock(blockType):
+	global catalog
+
 	inputStream.seek(catalog[blockType.ident])
 	blockHdr = inputStream.read(BLOCK_HDR_LGTH)
 	blockIdData, nEntries = struct.unpack('> 4s 4x I', blockHdr)
@@ -81,6 +92,7 @@ def printBlock(blockType):
 	print()
 
 def printMotifFile(inputStream):
+	global catalog
 
 	# file header
 	fileHdr = inputStream.read(FILE_HDR_LGTH)
@@ -100,19 +112,11 @@ def printMotifFile(inputStream):
 
 # when invoked from the command line
 if __name__ == '__main__':
-#	print(sys.executable)
 	if len(sys.argv) == 2:
-#		try:
 		fileName = sys.argv[1]
-# 		print('working directory: ', os.getcwd(), sep='')
 		print('file:              ', fileName, '\n', sep='')
 		inputStream = open(fileName, 'rb')
 		printMotifFile(inputStream)
-#		except Exception as e:
-#			errorMsg = '--> ' + str(e.args[0])
-#			print(errorMsg)
-#			print(errorMsg, file=sys.stderr)
 		inputStream.close()
-
 	else:
-		print('no args')
+		print('need 1 command line arg: motif file name')
