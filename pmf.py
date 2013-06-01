@@ -1,3 +1,12 @@
+'''
+Prints out (some of) the contents of a Motif file. The choice of which items
+to print reflects the interests of the code's author.
+
+Written to be extensible, so that other items can be printed if desired.
+
+@author: Michael Trigoboff
+'''
+
 import os.path, struct, sys
 
 FILE_HDR_LGTH =					 64
@@ -21,9 +30,6 @@ def bankSectionNumberStr(bank, item):
 	section =			number >> 4
 	itemInSection =		number & 0x0f
 	return '%s:%03d(%c%02d)' % (BANKS[bank], number + 1, ord('A') + section, itemInSection + 1)
-
-def printDefault(entryNumber, entryName, data):
-	print('%02d:' % (entryNumber + 1), entryName)
 
 # enum corresponds to how these types are defined in the Motif file
 class MasterTargetType:
@@ -51,6 +57,9 @@ def printMaster(entryNumber, entryName, data):
 def printPerformance(performanceNumber, entryName, data):
 	print(bankSectionNumberStr(((performanceNumber & 0x0780) >> 7) + 8, performanceNumber & 0x007F),
 		  entryName.split(':')[-1])
+
+def printDefault(entryNumber, entryName, data):
+	print('%02d:' % (entryNumber + 1), entryName)
 
 class BlockType:
 	def __init__(self, ident, title, printFn, needsData):
