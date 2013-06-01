@@ -1,4 +1,4 @@
-import struct, sys
+import os.path, struct, sys
 
 FILE_HDR_LGTH =					 64
 CATALOG_ENTRY_LGTH =			  8
@@ -25,12 +25,14 @@ def bankSectionNumberStr(bank, item):
 def printDefault(entryNumber, entryName, data):
 	print('%02d:' % (entryNumber + 1), entryName)
 
+# enum corresponds to how these types are defined in the Motif file
 class MasterTargetType:
 	MST_VOICE, MST_PERFORMANCE, MST_PATTERN, MST_SONG = range(4)
-		# enum corresponds to how these types are defined in the Motif file
 
 def printMaster(entryNumber, entryName, data):
-	targetType, targetBank, target = struct.unpack('> 36x B x B B 520x', data)
+	dataId, targetType, targetBank, target = \
+		struct.unpack('> 4s 32x B x B B 520x', data)
+	assert dataId == BLOCK_DATA_ID, BLOCK_DATA_ID
 	targetBank &= 0x0F		# guess about keeping bank in range
 	print('%03d: %-20s ' % (entryNumber + 1, entryName), end='')
 	if targetType == MasterTargetType.MST_VOICE:
@@ -41,20 +43,21 @@ def printMaster(entryNumber, entryName, data):
 	else:
 		if targetType == MasterTargetType.MST_PATTERN:	
 			print('Pt', end='')
-		else: # targetType == MasterTargetType.MST_SONG
+		else:
+			assert targetType == MasterTargetType.MST_SONG
 			print('Sg', end='')
 		print(' %02d' % (target + 1))
 
 def printPerformance(performanceNumber, entryName, data):
-	print('%s %s' % (bankSectionNumberStr(((performanceNumber & 0x0780) >> 7) + 8, performanceNumber & 0x007F),
-					 entryName.split(':')[-1]))
+	print(bankSectionNumberStr(((performanceNumber & 0x0780) >> 7) + 8, performanceNumber & 0x007F),
+		  entryName.split(':')[-1])
 
 class BlockType:
 	def __init__(self, ident, title, printFn, needsData):
-		self.ident = ident
-		self.title = title
-		self.printFn = printFn
-		self.needsData = needsData
+		self.ident =		ident
+		self.title =		title
+		self.printFn =		printFn
+		self.needsData =	needsData
 
 blockTypes = (BlockType(b'ESNG',	'Songs',		printDefault,		False),			\
 			  BlockType(b'EPTN',	'Patterns',		printDefault,		False),			\
@@ -114,7 +117,7 @@ def printMotifFile(inputStream):
 if __name__ == '__main__':
 	if len(sys.argv) == 2:
 		fileName = sys.argv[1]
-		print('file:              ', fileName, '\n', sep='')
+		print(os.path.basename(fileName), '\n')
 		inputStream = open(fileName, 'rb')
 		printMotifFile(inputStream)
 		inputStream.close()
