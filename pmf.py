@@ -4,7 +4,15 @@ to print reflects the interests of the code's author.
 
 Written to be extensible, so that other items can be printed if desired.
 
-@author: Michael Trigoboff
+Based on the excellent work done by Chris Webb, who did a lot of helpful
+reverse engineering on the Motif file format, and wrote Python code
+based on that. I used his work as a starting point for this code.
+Link: http://www.motifator.com/index.php/forum/viewthread/460307/
+
+@author:  Michael Trigoboff
+@contact: mtrigoboff@comcast.net
+@contact: http://spot.pcc.edu/~mtrigobo
+@version: 1.0
 '''
 
 import os.path, struct, sys
