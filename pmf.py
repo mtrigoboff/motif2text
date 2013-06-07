@@ -12,10 +12,11 @@ Link: http://www.motifator.com/index.php/forum/viewthread/460307/
 @author:  Michael Trigoboff
 @contact: mtrigoboff@comcast.net
 @contact: http://spot.pcc.edu/~mtrigobo
-@version: 1.0
 '''
 
 import os.path, struct, sys
+
+VERSION = '1.1'
 
 FILE_HDR_LGTH =					 64
 CATALOG_ENTRY_LGTH =			  8
@@ -62,9 +63,21 @@ def printMaster(entryNumber, entryName, data):
 			print('Sg', end='')
 		print(' %02d' % (target + 1))
 
-def printPerformance(performanceNumber, entryName, data):
-	print(bankSectionNumberStr(((performanceNumber & 0x0780) >> 7) + 8, performanceNumber & 0x007F),
+def printPerformance(entryNumber, entryName, data):
+	print(bankSectionNumberStr(((entryNumber & 0x0780) >> 7) + 8, entryNumber & 0x007F),
 		  entryName.split(':')[-1])
+
+def printVoice(entryNumber, entryName, data):
+	bankNumber = (entryNumber & 0x00FF00) >> 8
+	if bankNumber < 16:
+		print(bankSectionNumberStr(bankNumber, entryNumber & 0x0000FF),
+			  entryName.split(':')[-1])
+	elif bankNumber == 40:
+		print(bankSectionNumberStr(15, entryNumber & 0x0000FF),
+			  entryName.split(':')[-1])
+# 	else:						# print 'mystery entries'
+# 		print((entryNumber & 0x00FF00) >> 8, entryNumber & 0x0000FF,
+# 			  entryName.split(':')[-1])
 
 def printDefault(entryNumber, entryName, data):
 	print('%02d:' % (entryNumber + 1), entryName)
@@ -79,7 +92,8 @@ class BlockType:
 blockTypes = (BlockType(b'ESNG',	'Songs',		printDefault,		False),			\
 			  BlockType(b'EPTN',	'Patterns',		printDefault,		False),			\
 			  BlockType(b'EMST',	'Masters',		printMaster,		True),			\
-			  BlockType(b'EPFM',	'Performances',	printPerformance,	False)			\
+			  BlockType(b'EPFM',	'Performances',	printPerformance,	False),			\
+			  BlockType(b'EVCE',	'Voices',		printVoice,			False),			\
 			  )
 
 def printBlock(blockType):
@@ -139,4 +153,4 @@ if __name__ == '__main__':
 		printMotifFile(inputStream)
 		inputStream.close()
 	else:
-		print('need 1 command line arg: motif file name')
+		print('pmf version %s\nneed 1 command line arg: motif file name' % (VERSION))
