@@ -16,7 +16,10 @@ Link: http://www.motifator.com/index.php/forum/viewthread/460307/
 
 import os.path, struct, sys
 
-VERSION = '1.1'
+VERSION = '1.2'
+
+SONG_ABBREV =		'Sg'
+PATTERN_ABBREV =	'Pt'
 
 FILE_HDR_LGTH =					 64
 CATALOG_ENTRY_LGTH =			  8
@@ -32,7 +35,9 @@ BLOCK_DATA_ID =		b'Data'
 BANKS = ('PRE1', 'PRE2', 'PRE3', 'PRE4', 'PRE5', 'PRE6', 'PRE7', 'PRE8',
 		 'USR1', 'USR2', 'USR3', 'USR4', 'GM',   'GMDR', 'PDR',  'UDR')
 
+# globals
 catalog = {}
+mixVoicesHdr = False
 
 def bankSectionNumberStr(bank, item):
 	number =			item & 0x7f
@@ -57,10 +62,10 @@ def printMaster(entryNumber, entryName, data):
 			# targetBank + 8 because Performances start in bank USR1
 	else:
 		if targetType == MasterTargetType.MST_PATTERN:	
-			print('Pt', end='')
+			print(PATTERN_ABBREV, end='')
 		else:
 			assert targetType == MasterTargetType.MST_SONG
-			print('Sg', end='')
+			print(SONG_ABBREV, end='')
 		print(' %02d' % (target + 1))
 
 def printPerformance(entryNumber, entryName, data):
@@ -68,16 +73,26 @@ def printPerformance(entryNumber, entryName, data):
 		  entryName.split(':')[-1])
 
 def printVoice(entryNumber, entryName, data):
+	global mixVoicesHdr
 	bankNumber = (entryNumber & 0x00FF00) >> 8
+	voiceNumber = entryNumber & 0x0000FF
 	if bankNumber < 16:
-		print(bankSectionNumberStr(bankNumber, entryNumber & 0x0000FF),
+		print(bankSectionNumberStr(bankNumber, voiceNumber),
 			  entryName.split(':')[-1])
 	elif bankNumber == 40:
-		print(bankSectionNumberStr(15, entryNumber & 0x0000FF),
+		print(bankSectionNumberStr(15, voiceNumber),
 			  entryName.split(':')[-1])
-# 	else:						# print 'mystery entries'
-# 		print((entryNumber & 0x00FF00) >> 8, entryNumber & 0x0000FF,
-# 			  entryName.split(':')[-1])
+	else:	# print Mix Voices
+		if not mixVoicesHdr:
+			print('\nMix Voices')
+			mixVoicesHdr = True
+		if bankNumber > 192:			# guess at where it switches to pattern
+			songPatternStr = PATTERN_ABBREV
+		else:
+			songPatternStr = SONG_ABBREV
+		print('%s %02d:%03d %s' % (
+			  songPatternStr, bankNumber - 127, voiceNumber - 127,
+ 			  entryName.split(':')[-1]))
 
 def printDefault(entryNumber, entryName, data):
 	print('%02d:' % (entryNumber + 1), entryName)
@@ -126,8 +141,6 @@ def printBlock(blockType):
 	print()
 
 def printMotifFile(inputStream):
-	global catalog
-
 	# file header
 	fileHdr = inputStream.read(FILE_HDR_LGTH)
 	fileHdrId, fileVersion, catalogSize = struct.unpack('> 16s 16s I 28x', fileHdr)
