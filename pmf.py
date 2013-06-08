@@ -16,7 +16,7 @@ Link: http://www.motifator.com/index.php/forum/viewthread/460307/
 
 import os.path, struct, sys
 
-VERSION = '1.2'
+VERSION = '1.3'
 
 SONG_ABBREV =		'Sg'
 PATTERN_ABBREV =	'Pt'
@@ -37,7 +37,7 @@ BANKS = ('PRE1', 'PRE2', 'PRE3', 'PRE4', 'PRE5', 'PRE6', 'PRE7', 'PRE8',
 
 # globals
 catalog = {}
-mixVoicesHdr = False
+mixVoices = []
 
 def bankSectionNumberStr(bank, item):
 	number =			item & 0x7f
@@ -72,7 +72,6 @@ def printPerformance(entryNumber, entryName, data):
 		  entryName.split(':')[-1])
 
 def printVoice(entryNumber, entryName, data):
-	global mixVoicesHdr
 	bankNumber = (entryNumber & 0x00FF00) >> 8
 	voiceNumber = entryNumber & 0x0000FF
 	voiceName = entryName.split(':')[-1]
@@ -80,10 +79,14 @@ def printVoice(entryNumber, entryName, data):
 		print(bankSectionNumberStr(bankNumber, voiceNumber), voiceName)
 	elif bankNumber == 40:
 		print(bankSectionNumberStr(15, voiceNumber), voiceName)
-	else:	# print Mix Voices
-		if not mixVoicesHdr:
-			print('\nMix Voices')
-			mixVoicesHdr = True
+	else:	# Mix Voice
+		mixVoices.append([entryNumber, bankNumber, voiceNumber, voiceName])
+
+def printMixVoices():
+	mixVoices.sort(key = lambda mixVoice: mixVoice[0])
+	print('Mix Voices (%d)' % len(mixVoices))
+	for mixVoice in mixVoices:
+		_, bankNumber, voiceNumber, voiceName = mixVoice
 		if bankNumber > 192:			# guess at where it switches to pattern
 			songPatternStr = PATTERN_ABBREV
 		else:
@@ -152,6 +155,9 @@ def printMotifFile(inputStream):
 
 	for blockType in blockTypes:
 		printBlock(blockType)
+	
+	if len(mixVoices) > 0:
+		printMixVoices()
 
 # when invoked from the command line
 if __name__ == '__main__':
