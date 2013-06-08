@@ -50,8 +50,7 @@ class MasterTargetType:
 	MST_VOICE, MST_PERFORMANCE, MST_PATTERN, MST_SONG = range(4)
 
 def printMaster(entryNumber, entryName, data):
-	dataId, targetType, targetBank, target = \
-		struct.unpack('> 4s 32x B x B B 520x', data)
+	dataId, targetType, targetBank, target = struct.unpack('> 4s 32x B x B B 520x', data)
 	assert dataId == BLOCK_DATA_ID, BLOCK_DATA_ID
 	targetBank &= 0x0F		# guess about keeping bank in range
 	print('%03d: %-20s ' % (entryNumber + 1, entryName), end='')
@@ -76,12 +75,11 @@ def printVoice(entryNumber, entryName, data):
 	global mixVoicesHdr
 	bankNumber = (entryNumber & 0x00FF00) >> 8
 	voiceNumber = entryNumber & 0x0000FF
+	voiceName = entryName.split(':')[-1]
 	if bankNumber < 16:
-		print(bankSectionNumberStr(bankNumber, voiceNumber),
-			  entryName.split(':')[-1])
+		print(bankSectionNumberStr(bankNumber, voiceNumber), voiceName)
 	elif bankNumber == 40:
-		print(bankSectionNumberStr(15, voiceNumber),
-			  entryName.split(':')[-1])
+		print(bankSectionNumberStr(15, voiceNumber), voiceName)
 	else:	# print Mix Voices
 		if not mixVoicesHdr:
 			print('\nMix Voices')
@@ -90,9 +88,7 @@ def printVoice(entryNumber, entryName, data):
 			songPatternStr = PATTERN_ABBREV
 		else:
 			songPatternStr = SONG_ABBREV
-		print('%s %02d:%03d %s' % (
-			  songPatternStr, bankNumber - 127, voiceNumber - 127,
- 			  entryName.split(':')[-1]))
+		print('%s %02d:%03d %s' % (songPatternStr, bankNumber - 127, voiceNumber - 127, voiceName))
 
 def printDefault(entryNumber, entryName, data):
 	print('%02d:' % (entryNumber + 1), entryName)
