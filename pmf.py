@@ -16,7 +16,7 @@ Link: http://www.motifator.com/index.php/forum/viewthread/460307/
 
 import os.path, struct, sys
 
-VERSION = '1.3'
+VERSION = '1.4'
 
 SONG_ABBREV =		'Sg'
 PATTERN_ABBREV =	'Pt'
@@ -103,17 +103,29 @@ class BlockType:
 		self.printFn =		printFn
 		self.needsData =	needsData
 
-blockTypes = (BlockType(b'ESNG',	'Songs',		printDefault,		False),			\
-			  BlockType(b'EPTN',	'Patterns',		printDefault,		False),			\
-			  BlockType(b'EMST',	'Masters',		printMaster,		True),			\
-			  BlockType(b'EPFM',	'Performances',	printPerformance,	False),			\
-			  BlockType(b'EVCE',	'Voices',		printVoice,			False),			\
+blockTypes = (BlockType(b'ESNG',	'Songs',			printDefault,		False),			\
+			  BlockType(b'ESMT',	'Song Mixings',		printDefault,		False),			\
+			  BlockType(b'EPTN',	'Patterns',			printDefault,		False),			\
+			  BlockType(b'EPMT',	'Pattern Mixings',	printDefault,		False),			\
+			  BlockType(b'EPCH',	'Pattern Chains',	printDefault,		False),			\
+			  BlockType(b'EMST',	'Masters',			printMaster,		True),			\
+			  BlockType(b'EPFM',	'Performances',		printPerformance,	False),			\
+			  BlockType(b'EVCE',	'Voices',			printVoice,			False),			\
+			  BlockType(b'EARP',	'Arpeggios',		printDefault,		False),			\
+			  BlockType(b'EWFM',	'Waveforms',		printDefault,		False),			\
+#			  EWIM seems to be a duplicate of EWFM
+#			  BlockType(b'EWIM',	'Waveforms2',		printDefault,		False),			\
 			  )
 
 def printBlock(blockType):
 	global catalog
 
-	inputStream.seek(catalog[blockType.ident])
+	try:
+		inputStream.seek(catalog[blockType.ident])
+	except:
+		print('no data of type: %s(%s)\n' % (blockType.title, blockType.ident.decode('ascii')))
+		return
+	
 	blockHdr = inputStream.read(BLOCK_HDR_LGTH)
 	blockIdData, nEntries = struct.unpack('> 4s 4x I', blockHdr)
 	assert blockIdData == blockType.ident, blockType.ident
