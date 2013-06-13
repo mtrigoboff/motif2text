@@ -93,6 +93,9 @@ def printMixVoices():
 			songPatternStr = SONG_ABBREV
 		print('%s %02d:%03d %s' % (songPatternStr, bankNumber - 127, voiceNumber - 127, voiceName))
 
+def printWaveform(entryNumber, entryName, data):
+	print('%04d:' % (entryNumber + 1), entryName)	# entryNumber range is [0 .. 2048]
+
 def printDefault(entryNumber, entryName, data):
 	print('%02d:' % (entryNumber + 1), entryName)
 
@@ -112,7 +115,7 @@ blockTypes = (BlockType(b'ESNG',	'Songs',			printDefault,		False),			\
 			  BlockType(b'EPFM',	'Performances',		printPerformance,	False),			\
 			  BlockType(b'EVCE',	'Voices',			printVoice,			False),			\
 			  BlockType(b'EARP',	'Arpeggios',		printDefault,		False),			\
-			  BlockType(b'EWFM',	'Waveforms',		printDefault,		False),			\
+			  BlockType(b'EWFM',	'Waveforms',		printWaveform,		False),			\
 #			  EWIM seems to be a duplicate of EWFM
 #			  BlockType(b'EWIM',	'Waveforms2',		printDefault,		False),			\
 			  )
