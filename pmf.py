@@ -16,7 +16,7 @@ Link: http://www.motifator.com/index.php/forum/viewthread/460307/
 
 import os.path, struct, sys
 
-VERSION = '1.4'
+VERSION = '1.5'
 
 SONG_ABBREV =		'Sg'
 PATTERN_ABBREV =	'Pt'
@@ -36,8 +36,10 @@ BANKS = ('PRE1', 'PRE2', 'PRE3', 'PRE4', 'PRE5', 'PRE6', 'PRE7', 'PRE8',
 		 'USR1', 'USR2', 'USR3', 'USR4', 'GM',   'GMDR', 'PDR',  'UDR')
 
 # globals
-catalog = {}
-mixVoices = []
+catalog =				{}
+mixVoices =				[]
+waveforms =				[]
+waveformDuplicates =	{}
 
 def bankSectionNumberStr(bank, item):
 	number =			item & 0x7f
@@ -71,16 +73,22 @@ def printPerformance(entryNumber, entryName, data):
 	print(bankSectionNumberStr(((entryNumber & 0x0780) >> 7) + 8, entryNumber & 0x007F),
 		  entryName.split(':')[-1])
 
-def printVoice(entryNumber, entryName, data):
+def doVoice(entryNumber, entryName, data):
 	bankNumber = (entryNumber & 0x00FF00) >> 8
 	voiceNumber = entryNumber & 0x0000FF
 	voiceName = entryName.split(':')[-1]
+	if bankNumber < 16 or bankNumber == 40:
+		printVoice(bankNumber, voiceNumber, voiceName)
+	elif bankNumber == 40:
+		printVoice(15, voiceNumber, voiceName)
+	else:	# Mix Voice
+		mixVoices.append([entryNumber, bankNumber, voiceNumber, voiceName])
+
+def printVoice(bankNumber, voiceNumber, voiceName):
 	if bankNumber < 16:
 		print(bankSectionNumberStr(bankNumber, voiceNumber), voiceName)
 	elif bankNumber == 40:
 		print(bankSectionNumberStr(15, voiceNumber), voiceName)
-	else:	# Mix Voice
-		mixVoices.append([entryNumber, bankNumber, voiceNumber, voiceName])
 
 def printMixVoices():
 	mixVoices.sort(key = lambda mixVoice: mixVoice[0])
@@ -92,30 +100,49 @@ def printMixVoices():
 		else:
 			songPatternStr = SONG_ABBREV
 		print('%s %02d:%03d %s' % (songPatternStr, bankNumber - 127, voiceNumber - 127, voiceName))
+	print()
 
-def printWaveform(entryNumber, entryName, data):
-	print('%04d:' % (entryNumber + 1), entryName)	# entryNumber range is [0 .. 2048]
+def doWaveform(entryNumber, entryName, data):			# entryNumber range is [0 .. 2047]
+	waveformNumber = entryNumber - 128
+	waveformName = entryName.split(':')[-1]
+	waveforms.append([waveformNumber, waveformName])
+	if waveformName in waveformDuplicates:
+		waveformDuplicates[waveformName].append(waveformNumber)
+	else:
+		waveformDuplicates[waveformName] = [waveformNumber]
+
+def printWaveforms():
+	print('Waveforms (%d)' % len(waveforms))
+	for waveform in waveforms:
+		waveformNumber, waveformName = waveform
+		waveformNumbers = waveformDuplicates[waveformName]
+		print('%04d:' % (waveformNumber), waveformName)			# waveformNumber range is [1 .. 2048]
+		if len(waveformNumbers) > 1:
+			print('  duplicates: ', end='')
+			print([wfn for wfn in waveformNumbers if wfn != waveformNumber])
+	print()
 
 def printDefault(entryNumber, entryName, data):
 	print('%02d:' % (entryNumber + 1), entryName)
 
 class BlockType:
-	def __init__(self, ident, title, printFn, needsData):
+	def __init__(self, ident, title, doFn, needsData, delayedPrint):
 		self.ident =		ident
 		self.title =		title
-		self.printFn =		printFn
+		self.doFn =			doFn			# what to do with each item of this type
 		self.needsData =	needsData
+		self.delayedPrint =	delayedPrint
 
-blockTypes = (BlockType(b'ESNG',	'Songs',			printDefault,		False),			\
-			  BlockType(b'ESMT',	'Song Mixings',		printDefault,		False),			\
-			  BlockType(b'EPTN',	'Patterns',			printDefault,		False),			\
-			  BlockType(b'EPMT',	'Pattern Mixings',	printDefault,		False),			\
-			  BlockType(b'EPCH',	'Pattern Chains',	printDefault,		False),			\
-			  BlockType(b'EMST',	'Masters',			printMaster,		True),			\
-			  BlockType(b'EPFM',	'Performances',		printPerformance,	False),			\
-			  BlockType(b'EVCE',	'Voices',			printVoice,			False),			\
-			  BlockType(b'EARP',	'Arpeggios',		printDefault,		False),			\
-			  BlockType(b'EWFM',	'Waveforms',		printWaveform,		False),			\
+blockTypes = (BlockType(b'ESNG',	'Songs',			printDefault,		False,		False),			\
+			  BlockType(b'ESMT',	'Song Mixings',		printDefault,		False,		False),			\
+			  BlockType(b'EPTN',	'Patterns',			printDefault,		False,		False),			\
+			  BlockType(b'EPMT',	'Pattern Mixings',	printDefault,		False,		False),			\
+			  BlockType(b'EPCH',	'Pattern Chains',	printDefault,		False,		False),			\
+			  BlockType(b'EMST',	'Masters',			printMaster,		True,		False),			\
+			  BlockType(b'EPFM',	'Performances',		printPerformance,	False,		False),			\
+			  BlockType(b'EVCE',	'Voices',			doVoice,			False,		False),			\
+			  BlockType(b'EARP',	'Arpeggios',		printDefault,		False,		False),			\
+			  BlockType(b'EWFM',	'Waveforms',		doWaveform,			False,		True),			\
 #			  EWIM seems to be a duplicate of EWFM
 #			  BlockType(b'EWIM',	'Waveforms2',		printDefault,		False),			\
 			  )
@@ -132,7 +159,8 @@ def printBlock(blockType):
 	blockHdr = inputStream.read(BLOCK_HDR_LGTH)
 	blockIdData, nEntries = struct.unpack('> 4s 4x I', blockHdr)
 	assert blockIdData == blockType.ident, blockType.ident
-	print(blockType.title)
+	if not blockType.delayedPrint:
+		print(blockType.title)
 	for _ in range(0, nEntries):
 		entryHdr = inputStream.read(ENTRY_HDR_LGTH + ENTRY_FIXED_SIZE_DATA_LGTH)
 		entryId, entryLgth, dataSize, dataOffset, entryNumber = \
@@ -151,8 +179,9 @@ def printBlock(blockType):
 			inputStream.seek(entryPosn)
 		else:
 			blockData = None
-		blockType.printFn(entryNumber, entryName, blockData)	
-	print()
+		blockType.doFn(entryNumber, entryName, blockData)	
+	if not blockType.delayedPrint:
+		print()
 
 def printMotifFile(inputStream):
 	# file header
@@ -173,6 +202,9 @@ def printMotifFile(inputStream):
 	
 	if len(mixVoices) > 0:
 		printMixVoices()
+
+	if len(waveforms) > 0:
+		printWaveforms()
 
 # when invoked from the command line
 if __name__ == '__main__':
