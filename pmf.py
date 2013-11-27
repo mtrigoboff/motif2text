@@ -16,7 +16,7 @@ Link: http://www.motifator.com/index.php/forum/viewthread/460307/
 
 import os.path, struct, sys
 
-VERSION = '1.5'
+VERSION = '1.6'
 
 SONG_ABBREV =		'Sg'
 PATTERN_ABBREV =	'Pt'
