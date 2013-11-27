@@ -38,6 +38,7 @@ BANKS = ('PRE1', 'PRE2', 'PRE3', 'PRE4', 'PRE5', 'PRE6', 'PRE7', 'PRE8',
 # globals
 catalog =				{}
 mixVoices =				[]
+sampleVoices =				[]
 waveforms =				[]
 waveformDuplicates =	{}
 
@@ -77,10 +78,12 @@ def doVoice(entryNumber, entryName, data):
 	bankNumber = (entryNumber & 0x00FF00) >> 8
 	voiceNumber = entryNumber & 0x0000FF
 	voiceName = entryName.split(':')[-1]
-	if bankNumber < 16 or bankNumber == 40:
+	if bankNumber < 16:
 		printVoice(bankNumber, voiceNumber, voiceName)
 	elif bankNumber == 40:
 		printVoice(15, voiceNumber, voiceName)
+	elif bankNumber == 134:
+		sampleVoices.append([entryNumber, bankNumber, voiceNumber, voiceName])
 	else:	# Mix Voice
 		mixVoices.append([entryNumber, bankNumber, voiceNumber, voiceName])
 
@@ -90,17 +93,24 @@ def printVoice(bankNumber, voiceNumber, voiceName):
 	elif bankNumber == 40:
 		print(bankSectionNumberStr(15, voiceNumber), voiceName)
 
-def printMixVoices():
-	mixVoices.sort(key = lambda mixVoice: mixVoice[0])
-	print('Mix Voices (%d)' % len(mixVoices))
-	for mixVoice in mixVoices:
-		_, bankNumber, voiceNumber, voiceName = mixVoice
+def printSpecialVoices(voices):
+	for voice in voices:
+		_, bankNumber, voiceNumber, voiceName = voice
 		if bankNumber > 192:			# guess at where it switches to pattern
 			songPatternStr = PATTERN_ABBREV
 		else:
 			songPatternStr = SONG_ABBREV
 		print('%s %02d:%03d %s' % (songPatternStr, bankNumber - 127, voiceNumber - 127, voiceName))
 	print()
+
+def printMixVoices():
+	mixVoices.sort(key = lambda mixVoice: mixVoice[0])
+	print('Mix Voices (%d)' % len(mixVoices))
+	printSpecialVoices(mixVoices)
+
+def printSampleVoices():
+	print('Sample Voices (%d)' % len(sampleVoices))
+	printSpecialVoices(sampleVoices)
 
 def doWaveform(entryNumber, entryName, data):			# entryNumber range is [0 .. 2047]
 	waveformNumber = entryNumber - 128
@@ -202,6 +212,9 @@ def printMotifFile(inputStream):
 	
 	if len(mixVoices) > 0:
 		printMixVoices()
+
+	if len(sampleVoices) > 0:
+		printSampleVoices()
 
 	if len(waveforms) > 0:
 		printWaveforms()
