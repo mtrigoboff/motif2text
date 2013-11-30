@@ -1,8 +1,5 @@
 '''
-Prints out (some of) the contents of a Motif file. The choice of which items
-to print reflects the interests of the code's author.
-
-Written to be extensible, so that other items can be printed if desired.
+Prints out the contents of a Motif file.
 
 Based on the excellent work done by Chris Webb, who did a lot of helpful
 reverse engineering on the Motif file format, and wrote Python code
@@ -12,11 +9,27 @@ Link: http://www.motifator.com/index.php/forum/viewthread/460307/
 @author:  Michael Trigoboff
 @contact: mtrigoboff@comcast.net
 @contact: http://spot.pcc.edu/~mtrigobo
+
+Copyright 2012, 2013 Michael Trigoboff.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program as file gpl.txt.
+If not, see <http://www.gnu.org/licenses/>.
 '''
 
-import os.path, struct, sys
+import collections, os.path, struct, sys
 
-VERSION = '1.6'
+VERSION = '2.0'
 
 SONG_ABBREV =		'Sg'
 PATTERN_ABBREV =	'Pt'
@@ -37,12 +50,13 @@ BANKS = ('PRE1', 'PRE2', 'PRE3', 'PRE4', 'PRE5', 'PRE6', 'PRE7', 'PRE8',
 
 # globals
 catalog =				{}
-voices =				[]
-mixVoices =				[]
-sampleVoices =			[]
-voicesToPrint =			[]
 waveforms =				[]
 waveformDuplicates =	{}
+
+voiceBlockRead = 		False
+voices =				[]
+mixingVoices =			[]
+sampleVoices =			[]
 
 def bankSectionNumberStr(bank, item):
 	number =			item & 0x7f
@@ -86,19 +100,17 @@ def doVoice(entryNumber, entryName, data):
 		voices.append([15, voiceNumber, voiceName])
 	elif bankNumber == 134:
 		sampleVoices.append([entryNumber, bankNumber, voiceNumber, voiceName])
-	else:	# Mix Voice
-		mixVoices.append([entryNumber, bankNumber, voiceNumber, voiceName])
+	else:	# Mixing Voice
+		mixingVoices.append([entryNumber, bankNumber, voiceNumber, voiceName])
 
 def printVoice(bankNumber, voiceNumber, voiceName):
-	if bankNumber < 16:
-		print(bankSectionNumberStr(bankNumber, voiceNumber), voiceName)
-	elif bankNumber == 40:
-		print(bankSectionNumberStr(15, voiceNumber), voiceName)
+	print(bankSectionNumberStr(bankNumber, voiceNumber), voiceName)
 
-def printVoices():
-	print('%s (%d)' % (blockTypes[0].title, len(voices)))
+def printVoices(name):
+	print('%s (%d)' % (name, len(voices)))
 	for voice in voices:
 		printVoice(voice[0], voice[1], voice[2])
+	print()
 
 def printSpecialVoices(voices):
 	for voice in voices:
@@ -110,16 +122,16 @@ def printSpecialVoices(voices):
 		print('%s %02d:%03d %s' % (songPatternStr, bankNumber - 127, voiceNumber - 127, voiceName))
 	print()
 
-def printMixVoices():
-	mixVoices.sort(key = lambda mixVoice: mixVoice[0])
-	print('Mix Voices (%d)' % len(mixVoices))
-	printSpecialVoices(mixVoices)
+def printMixingVoices(name):
+	mixingVoices.sort(key = lambda mixVoice: mixVoice[0])
+	print('%s (%d)' % (name, len(mixingVoices)))
+	printSpecialVoices(mixingVoices)
 
-def printSampleVoices():
-	print('Sample Voices (%d)' % len(sampleVoices))
+def printSampleVoices(name):
+	print('%s (%d)' % (name, len(sampleVoices)))
 	printSpecialVoices(sampleVoices)
 
-def doWaveform(entryNumber, entryName, data):			# entryNumber range is [0 .. 2047]
+def doWaveform(entryNumber, entryName, data):					# entryNumber range is [0 .. 2047]
 	waveformNumber = entryNumber - 128
 	waveformName = entryName.split(':')[-1]
 	waveforms.append([waveformNumber, waveformName])
@@ -128,8 +140,8 @@ def doWaveform(entryNumber, entryName, data):			# entryNumber range is [0 .. 204
 	else:
 		waveformDuplicates[waveformName] = [waveformNumber]
 
-def printWaveforms():
-	print('Waveforms (%d)' % len(waveforms))
+def printWaveforms(name):
+	print('%s (%d)' % (name, len(waveforms)))
 	for waveform in waveforms:
 		waveformNumber, waveformName = waveform
 		waveformNumbers = waveformDuplicates[waveformName]
@@ -142,126 +154,154 @@ def printWaveforms():
 def printDefault(entryNumber, entryName, data):
 	print('%02d:' % (entryNumber + 1), entryName)
 
-class BlockType:
-	def __init__(self, ident, title, doFn, needsData, delayedPrint, cmdLineSpec):
-		self.ident =		ident
-		self.title =		title
-		self.doFn =			doFn			# what to do with each item of this type
-		self.needsData =	needsData
-		self.delayedPrint =	delayedPrint
-		self.cmdLineSpec =	cmdLineSpec
+class BlockSpec:
+	def __init__(self, ident, name, doFn, printFn, needsData):
+		self.ident =			ident
+		self.name =				name
+		self.doFn =				doFn			# what to do with each item of this type
+		self.printFn =			printFn			# print items of this type if not done by doFn
+		self.needsData =		needsData
 
-blockTypes = (
-	BlockType(b'EVCE',	'Voices',			doVoice,			False,		True,	('vc', 'mv', 'sv')),	\
-		# EVCE needs to be first in this list
-	BlockType(b'ESNG',	'Songs',			printDefault,		False,		False,	'sg'),					\
-	BlockType(b'ESMT',	'Song Mixings',		printDefault,		False,		False,	'sm'),					\
-	BlockType(b'EPTN',	'Patterns',			printDefault,		False,		False,	'pt'),					\
-	BlockType(b'EPMT',	'Pattern Mixings',	printDefault,		False,		False,	'pm'),					\
-	BlockType(b'EPCH',	'Pattern Chains',	printDefault,		False,		False,	'pc'),					\
-	BlockType(b'EMST',	'Masters',			printMaster,		True,		False,	'ms'),					\
-	BlockType(b'EPFM',	'Performances',		printPerformance,	False,		False,	'pf'),					\
-	BlockType(b'EARP',	'Arpeggios',		printDefault,		False,		False,	'ap'),					\
-	BlockType(b'EWFM',	'Waveforms',		doWaveform,			False,		True,	'wf'),					\
-#	EWIM seems to be a duplicate of EWFM
-#	BlockType(b'EWIM',	'Waveforms2',		printDefault,		False),			\
-	)
+# when printing out all blocks, they will print out in this order
+blockSpecs = collections.OrderedDict((
+	('sg',  BlockSpec(b'ESNG',	'Songs',			printDefault,		None,				False)),		\
+	('pt',  BlockSpec(b'EPTN',	'Patterns',			printDefault,		None,				False)),		\
+	('ms',  BlockSpec(b'EMST',	'Masters',			printMaster,		None,				True)),			\
+	('mv',  BlockSpec(b'EVCE',	'Mixing Voices',	doVoice,			printMixingVoices,	False)),		\
+	('sv',  BlockSpec(b'EVCE',	'Sample Voices',	doVoice,			printSampleVoices,	False)),		\
+	('pf',  BlockSpec(b'EPFM',	'Performances',		printPerformance,	None,				False)),		\
+	('vc',  BlockSpec(b'EVCE',	'Voices',			doVoice,			printVoices,		False)),		\
+	('ar',  BlockSpec(b'EARP',	'Arpeggios',		printDefault,		None,				False)),		\
+	('wf',  BlockSpec(b'EWFM',	'Waveforms',		doWaveform,			printWaveforms,		False)),		\
+	('sm',  BlockSpec(b'ESMT',	'Song Mixings',		printDefault,		None,				False)),		\
+	('pm',  BlockSpec(b'EPMT',	'Pattern Mixings',	printDefault,		None,				False)),		\
+	('pc',  BlockSpec(b'EPCH',	'Pattern Chains',	printDefault,		None,				False)),		\
+	#				   EWIM seems to be a duplicate of EWFM
+	# voice data of the 3 different kinds is collected from the EVCE block
+	))
 
-def printBlock(blockType):
-	global catalog
-
-	try:
-		inputStream.seek(catalog[blockType.ident])
-	except:
-		print('no data of type: %s(%s)\n' % (blockType.title, blockType.ident.decode('ascii')))
-		return
+def doBlock(blockSpec):
+	global catalog, voiceBlockRead
 	
+	try:
+		inputStream.seek(catalog[blockSpec.ident])
+	except:
+		print('no data of type: %s(%s)\n' % (blockSpec.name, blockSpec.ident.decode('ascii')))
+		return
+
 	blockHdr = inputStream.read(BLOCK_HDR_LGTH)
 	blockIdData, nEntries = struct.unpack('> 4s 4x I', blockHdr)
-	assert blockIdData == blockType.ident, blockType.ident
-	if not blockType.delayedPrint:
-		print(blockType.title)
-	for _ in range(0, nEntries):
-		entryHdr = inputStream.read(ENTRY_HDR_LGTH + ENTRY_FIXED_SIZE_DATA_LGTH)
-		entryId, entryLgth, dataSize, dataOffset, entryNumber = \
-			struct.unpack('> 4s I 4x I 4x I I 2x', entryHdr)
-		assert entryId == BLOCK_ENTRY_ID, BLOCK_ENTRY_ID
-		entryStrs = inputStream.read(entryLgth - ENTRY_FIXED_SIZE_DATA_LGTH)
-		entryStrs = entryStrs.decode('ascii')
-		entryName = entryStrs.rstrip('\x00').split('\x00')[0]
-		if blockType.needsData:
-			entryPosn = inputStream.tell()
-			dataIdent = bytearray(blockType.ident)
-			dataIdent[0] = ord('D')
-			dataIdent = bytes(dataIdent)
-			inputStream.seek(catalog[dataIdent] + dataOffset)
-			blockData = inputStream.read(dataSize + 8)
-			inputStream.seek(entryPosn)
-		else:
-			blockData = None
-		blockType.doFn(entryNumber, entryName, blockData)	
-	if not blockType.delayedPrint:
+
+	assert blockIdData == blockSpec.ident, blockSpec.ident
+	
+	if blockSpec.printFn == None:
+		print(blockSpec.name)
+
+	if blockSpec.ident != b'EVCE' or not voiceBlockRead:
+		for _ in range(0, nEntries):
+			entryHdr = inputStream.read(ENTRY_HDR_LGTH + ENTRY_FIXED_SIZE_DATA_LGTH)
+			entryId, entryLgth, dataSize, dataOffset, entryNumber = \
+				struct.unpack('> 4s I 4x I 4x I I 2x', entryHdr)
+			assert entryId == BLOCK_ENTRY_ID, BLOCK_ENTRY_ID
+			entryStrs = inputStream.read(entryLgth - ENTRY_FIXED_SIZE_DATA_LGTH)
+			entryStrs = entryStrs.decode('ascii')
+			entryName = entryStrs.rstrip('\x00').split('\x00')[0]
+			if blockSpec.needsData:
+				entryPosn = inputStream.tell()
+				dataIdent = bytearray(blockSpec.ident)
+				dataIdent[0] = ord('D')
+				dataIdent = bytes(dataIdent)
+				inputStream.seek(catalog[dataIdent] + dataOffset)
+				blockData = inputStream.read(dataSize + 8)
+				inputStream.seek(entryPosn)
+			else:
+				blockData = None
+			blockSpec.doFn(entryNumber, entryName, blockData)
+		if blockSpec.ident == b'EVCE':	# only need to read 'EVCE' block once
+			voiceBlockRead = True
+
+	if blockSpec.printFn == None:
 		print()
+		
+	if blockSpec.printFn != None:
+		blockSpec.printFn(blockSpec.name)
 
-def printMotifFile(inputStream, blocksToPrint):
-	# file header
-	fileHdr = inputStream.read(FILE_HDR_LGTH)
-	fileHdrId, fileVersion, catalogSize = struct.unpack('> 16s 16s I 28x', fileHdr)
-	assert fileHdrId[0:len(FILE_HDR_ID)] == FILE_HDR_ID, FILE_HDR_ID
-	fileVersion = fileVersion.decode('ascii').rstrip('\x00')
+def main():
+	global inputStream
 	
-	# build catalog
-	nCatalogEntries = int(catalogSize / CATALOG_ENTRY_LGTH)
-	for _ in range(0, nCatalogEntries):
-		entry = inputStream.read(CATALOG_ENTRY_LGTH)
-		entryId, offset = struct.unpack('> 4s I', entry)
-		catalog[entryId] = offset
+	# print file contents
+	if len(sys.argv) >= 2:
+		
+		# open file
+		fileName = sys.argv[len(sys.argv) - 1]
+		print(os.path.basename(fileName), '\n')
+		try:
+			inputStream = open(fileName, 'rb')
+		except IOError:
+			print('could not open file: %s' % fileName)
+			return
 
-	if len(blocksToPrint) == 0:				# nothing was specified on the cmd line...
-		blocksToPrint = blockTypes			# ... so print everything
+		# read file header
+		fileHdr = inputStream.read(FILE_HDR_LGTH)
+		fileHdrId, fileVersion, catalogSize = struct.unpack('> 16s 16s I 28x', fileHdr)
+		assert fileHdrId[0:len(FILE_HDR_ID)] == FILE_HDR_ID, FILE_HDR_ID
+		fileVersion = fileVersion.decode('ascii').rstrip('\x00')
+		
+		# build catalog
+		for _ in range(0, int(catalogSize / CATALOG_ENTRY_LGTH)):
+			entry = inputStream.read(CATALOG_ENTRY_LGTH)
+			entryId, offset = struct.unpack('> 4s I', entry)
+			catalog[entryId] = offset
 
-	for blockType in blocksToPrint:
-		printBlock(blockType)
+		# cmd line specifies what to print
+		if len(sys.argv) > 2:
+			for blockFlag in sys.argv[1:-1]:
+				try:
+					doBlock(blockSpecs[blockFlag])
+				except KeyError:
+					print('unknown block flag: %s\n' % blockFlag)
+
+		# print everything
+		else:
+			for blockSpec in blockSpecs.values():
+				doBlock(blockSpec)
+
+		inputStream.close()
 	
-	if len(mixVoices) > 0 and 'mv' in voicesToPrint:
-		printMixVoices()
+	# print help information
+	else:
+		print('pmf (Print Motif File)')
+		print('version %s' % VERSION)
+		print('by Michael Trigoboff\nmtrigoboff@comcast.net\nhttp://spot.pcc.edu/~mtrigobo')
+		print('''
+To print everything in a Motif file, type:
 
-	if len(sampleVoices) > 0 and 'sv' in voicesToPrint:
-		printSampleVoices()
+   python pmf.py motifFileName
 
-	if len(voices) > 0 and 'vc' in voicesToPrint:
-		printVoices()
+If you want to save the output into a file, do this:
 
-	if len(waveforms) > 0:
-		printWaveforms()
+   python pmf.py ... > outputFileName
+
+To print selected data types in a Motif file, specify those
+data types before the file name. The example below will print
+all Songs and all Patterns:
+
+   python pmf.py sg pt motifFileName
+
+The two-letter abbreviations for the various data types are:
+''')
+		
+		for blockFlag, blockSpec in blockSpecs.items():
+			print('   %s    %s' % (blockFlag, blockSpec.name.lower()))
+			
+		print('''
+Copyright 2012, 2013 Michael Trigoboff.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.''')
 
 # when invoked from the command line
 if __name__ == '__main__':
-	if len(sys.argv) >= 2:
-		blocksToPrint = []
-		if len(sys.argv) > 2:					#cmd line specifies what to print
-			cmdLineSpecBlocks = {}
-			for blockType in blockTypes:
-				if isinstance(blockType.cmdLineSpec, str):
-					cmdLineSpecBlocks[blockType.cmdLineSpec] = blockType
-				else:
-					for cmdLineSpec in blockType.cmdLineSpec:
-						cmdLineSpecBlocks[cmdLineSpec] = blockType
-			printingVoice = False				# we only want to include the Voice blocktype once
-			for cmdLineArg in sys.argv[1:-1]:
-				if cmdLineArg in blockTypes[0].cmdLineSpec:
-					voicesToPrint.append(cmdLineArg)
-					if not printingVoice:
-						printingVoice = True
-					else:
-						continue
-				blocksToPrint.append(cmdLineSpecBlocks[cmdLineArg])
-		else:
-			voicesToPrint = blockTypes[0].cmdLineSpec
-		fileName = sys.argv[len(sys.argv) - 1]
-		print(os.path.basename(fileName), '\n')
-		inputStream = open(fileName, 'rb')
-		printMotifFile(inputStream, blocksToPrint)
-		inputStream.close()
-	else:
-		print('pmf version %s\nneed 1 command line arg: motif file name' % (VERSION))
+	main()
