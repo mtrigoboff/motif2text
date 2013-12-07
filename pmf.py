@@ -29,7 +29,7 @@ If not, see <http://www.gnu.org/licenses/>.
 
 import collections, os.path, struct, sys
 
-VERSION = '2.0'
+VERSION = '2.1'
 
 SONG_ABBREV =		'Sg'
 PATTERN_ABBREV =	'Pt'
@@ -151,6 +151,9 @@ def printWaveforms(name):
 			print([wfn for wfn in waveformNumbers if wfn != waveformNumber])
 	print()
 
+def printUserArpeggio(entryNumber, entryName, data):
+	print('%03d:' % (entryNumber + 1), entryName.split(':')[-1])
+
 def printDefault(entryNumber, entryName, data):
 	print('%02d:' % (entryNumber + 1), entryName)
 
@@ -171,7 +174,7 @@ blockSpecs = collections.OrderedDict((
 	('sv',  BlockSpec(b'EVCE',	'Sample Voices',	doVoice,			printSampleVoices,	False)),		\
 	('pf',  BlockSpec(b'EPFM',	'Performances',		printPerformance,	None,				False)),		\
 	('vc',  BlockSpec(b'EVCE',	'Voices',			doVoice,			printVoices,		False)),		\
-	('ar',  BlockSpec(b'EARP',	'Arpeggios',		printDefault,		None,				False)),		\
+	('ua',  BlockSpec(b'EARP',	'User Arpeggios',	printUserArpeggio,	None,				False)),		\
 	('wf',  BlockSpec(b'EWFM',	'Waveforms',		doWaveform,			printWaveforms,		False)),		\
 	('sm',  BlockSpec(b'ESMT',	'Song Mixings',		printDefault,		None,				False)),		\
 	('pm',  BlockSpec(b'EPMT',	'Pattern Mixings',	printDefault,		None,				False)),		\
@@ -259,7 +262,7 @@ def main():
 				try:
 					doBlock(blockSpecs[blockFlag])
 				except KeyError:
-					print('unknown block flag: %s\n' % blockFlag)
+					print('unknown data type: %s\n' % blockFlag)
 
 		# print everything
 		else:
