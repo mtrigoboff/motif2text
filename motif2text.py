@@ -71,11 +71,7 @@ def createTextFn():
 	#os.system("notepad.exe \"" + textFilePath + "\"")		#open .txt file with notepad
 
 def helpFn():
-	helpFilePath = 'motif2textHelp.pdf'
-	# need to enclose helpFilePath in "..." so that space chars don't break path
-	os.startfile("\"" + helpFilePath + "\"")				# open .txt file with default app
-# 	helpWn = tkinter.Toplevel(root)
-# 	helpWn.title('Motif 2 Text Help')
+	os.startfile('motif2textHelp.pdf')						# open .pdf file with default app
 
 def keyPressFn(kpEvent):
 	try:
