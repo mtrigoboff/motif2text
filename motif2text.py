@@ -4,8 +4,9 @@
 @contact: http://spot.pcc.edu/~mtrigobo
 '''
 
+import os.path
 import tkinter
-from tkinter import BooleanVar, ttk
+from tkinter import BooleanVar, StringVar, ttk
 from tkinter.filedialog import askopenfilename
 
 from processFile import blockSpecs, processFile
@@ -27,18 +28,25 @@ def noneFn():
 		checkBox.variable.set(False)
 
 def selectFileFn():
-	global fileName
-	fileName = askopenfilename()
+	global filePath
+	filePath = askopenfilename()
+	fileName = os.path.basename(filePath)
+	fileNameEntryVar.set(fileName)
+	if len(filePath) != 0:
+		createTextBtn['state'] = 'enabled'
 
 def createTextFn():
 	for checkBox in checkBoxes:
 		if checkBox.variable.get():
 			selectedItems.append(checkBox.abbrev)
-	processFile(fileName, selectedItems)
+	processFile(filePath, selectedItems)
+
+def helpFn():
+	pass
 
 def keypressFn(kpEvent):
 	try:
-		fn = {'Escape'	:	'exit()',			# exit() raises SystemExit
+		fn = {'Escape'	:	'exit()',			# exit() raises SystemExitif
 			  'q' 		:	'exit()' } \
 			 [kpEvent.keysym]
 		eval(fn)
@@ -47,7 +55,8 @@ def keypressFn(kpEvent):
 
 checkBoxes = []
 selectedItems = []
-fileName = None
+filePath = ''
+fileName = ''
 
 root = tkinter.Tk()
 root.bind_all('<KeyPress>', keypressFn)
@@ -70,19 +79,27 @@ allBtn.grid(row = 0, column = 2, padx = 6, pady = 12)
 noneBtn = ttk.Button(checkBoxBtnsFrame, text = 'None', command = noneFn)
 noneBtn.grid(row = 1, column = 2, padx = 6, pady = 12)
 checkBoxBtnsFrame.pack(side = 'left')
-selectItemsFrame.grid(row = 0, column = 0)
+selectItemsFrame.grid(row = 0, column = 0, columnspan = 2)
 
-fileFrame = ttk.Frame(rootFrame, padding = '6 6 6 6')
-label = ttk.Label(fileFrame, text = 'File:')
-label.grid(row = 0, column = 0, sticky = 'w')
-fileFrame.grid(row = 1, column = 0)
+fileFrame = ttk.Frame(rootFrame, padding = '16 20 12 12')
+fileLabel = ttk.Label(fileFrame, text = 'File:  ')
+fileLabel.grid(row = 0, column = 0, sticky = 'w')
+fileNameEntryVar = StringVar()
+fileNameEntry = ttk.Entry(fileFrame, textvariable = fileNameEntryVar, width = 48, state='disabled')
+fileNameEntry.grid(row = 0, column = 1, sticky = 'w')
+fileFrame.grid(row = 1, column = 0, sticky = 'w', columnspan = 2)
 
-btnsFrame = ttk.Frame(rootFrame, padding = '6 12 64 6')
+btnsFrame = ttk.Frame(rootFrame, padding = '8 12 12 12')
 selectFileBtn = ttk.Button(btnsFrame, text = 'Select File', command = selectFileFn)
-selectFileBtn.grid(row = 0, column = 0, padx = 26)
-createTextBtn = ttk.Button(btnsFrame, text = 'Create Text', command = createTextFn)
-createTextBtn.grid(row = 0, column = 1)
-btnsFrame.grid(row = 2, column = 0, padx = 26)
+selectFileBtn.grid(row = 0, column = 0, sticky = 'w', padx = 6)
+createTextBtn = ttk.Button(btnsFrame, text = 'Create Text', command = createTextFn, state = 'disabled')
+createTextBtn.grid(row = 0, column = 1, sticky = 'w', padx = 12)
+btnsFrame.grid(row = 2, column = 0, padx = 12, sticky = 'ew')
+
+helpBtnFrame = ttk.Frame(rootFrame, padding = '12 12 12 12')
+helpBtn = ttk.Button(helpBtnFrame, text = 'Help', command = helpFn)
+helpBtn.grid(row = 0, column = 0, sticky = 'e')
+helpBtnFrame.grid(row = 2, column = 1, padx = 12, sticky = 'ew')
 
 root.title("Motif 2 Text")
 root.resizable(False, False)
