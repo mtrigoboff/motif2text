@@ -168,15 +168,15 @@ blockSpecs = collections.OrderedDict((
 	('sg',  BlockSpec(b'ESNG',	'Songs',			printDefault,		None,				False)),		\
 	('pt',  BlockSpec(b'EPTN',	'Patterns',			printDefault,		None,				False)),		\
 	('ms',  BlockSpec(b'EMST',	'Masters',			printMaster,		None,				True)),			\
-	('mv',  BlockSpec(b'EVCE',	'Mixing Voices',	doVoice,			printMixingVoices,	False)),		\
-	('sv',  BlockSpec(b'EVCE',	'Sample Voices',	doVoice,			printSampleVoices,	False)),		\
 	('pf',  BlockSpec(b'EPFM',	'Performances',		printPerformance,	None,				False)),		\
 	('vc',  BlockSpec(b'EVCE',	'Voices',			doVoice,			printVoices,		False)),		\
+	('pc',  BlockSpec(b'EPCH',	'Pattern Chains',	printDefault,		None,				False)),		\
 	('ua',  BlockSpec(b'EARP',	'User Arpeggios',	printUserArpeggio,	None,				False)),		\
-	('wf',  BlockSpec(b'EWFM',	'Waveforms',		doWaveform,			printWaveforms,		False)),		\
+	('mv',  BlockSpec(b'EVCE',	'Mixing Voices',	doVoice,			printMixingVoices,	False)),		\
 	('sm',  BlockSpec(b'ESMT',	'Song Mixings',		printDefault,		None,				False)),		\
 	('pm',  BlockSpec(b'EPMT',	'Pattern Mixings',	printDefault,		None,				False)),		\
-	('pc',  BlockSpec(b'EPCH',	'Pattern Chains',	printDefault,		None,				False)),		\
+	('wf',  BlockSpec(b'EWFM',	'Waveforms',		doWaveform,			printWaveforms,		False)),		\
+	('sv',  BlockSpec(b'EVCE',	'Sample Voices',	doVoice,			printSampleVoices,	False)),		\
 	#				   EWIM seems to be a duplicate of EWFM
 	# voice data of the 3 different kinds is collected from the EVCE block
 	))

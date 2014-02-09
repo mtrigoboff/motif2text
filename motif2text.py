@@ -4,62 +4,95 @@
 @contact: http://spot.pcc.edu/~mtrigobo
 '''
 
-import os.path
+import os, os.path, sys
 import tkinter
 from tkinter import BooleanVar, StringVar, ttk
 from tkinter.filedialog import askopenfilename
 
 from processFile import blockSpecs, processFile
 
-
 class CheckBox:
 	def __init__(self, label, abbrev, frame):
 		self.label =		label
 		self.abbrev =		abbrev
 		self.variable =		BooleanVar()
-		self.checkBtn = 	ttk.Checkbutton(frame, text = label, variable = self.variable)
+		self.checkBtn = 	ttk.Checkbutton(frame, text = label, variable = self.variable,
+											command = checkBoxChanged)
+
+# global variables
+VERSION = '1.0'
+checkBoxes = []
+selectedItems = []
+motifFilePath = ''
+fileName = ''
+
+def checkBoxChanged():
+	atLeastOneChecked = False
+	for checkBox in checkBoxes:
+		if checkBox.variable.get():
+			atLeastOneChecked = True
+	if atLeastOneChecked and len(motifFilePath) > 0:
+		createTextBtn['state'] = 'enabled'
+	else:
+		createTextBtn['state'] = 'disabled'		
 
 def allFn():
 	for checkBox in checkBoxes:
 		checkBox.variable.set(True)
+	if len(motifFilePath) > 0:
+		createTextBtn['state'] = 'enabled'
 
 def noneFn():
 	for checkBox in checkBoxes:
 		checkBox.variable.set(False)
+	createTextBtn['state'] = 'disabled'		
 
 def selectFileFn():
-	global filePath
-	filePath = askopenfilename()
-	fileName = os.path.basename(filePath)
+	global motifFilePath
+	motifFilePath = askopenfilename()
+	fileName = os.path.basename(motifFilePath)
 	fileNameEntryVar.set(fileName)
-	if len(filePath) != 0:
+	if len(motifFilePath) > 0:
 		createTextBtn['state'] = 'enabled'
 
 def createTextFn():
 	for checkBox in checkBoxes:
 		if checkBox.variable.get():
 			selectedItems.append(checkBox.abbrev)
-	processFile(filePath, selectedItems)
+	realStdOut = sys.stdout
+	textFilePath = motifFilePath + '.txt'
+	textFile = open(textFilePath, 'w')
+	sys.stdout = textFile
+	processFile(motifFilePath, selectedItems)
+	textFile.close()
+	sys.stdout = realStdOut
+	# need to enclose textFilePath in "..." so that space chars don't break path
+	os.startfile("\"" + textFilePath + "\"")				# open .txt file with default app
+	#os.system("notepad.exe \"" + textFilePath + "\"")		#open .txt file with notepad
 
 def helpFn():
-	pass
+	helpFilePath = 'motif2textHelp.pdf'
+	# need to enclose helpFilePath in "..." so that space chars don't break path
+	os.startfile("\"" + helpFilePath + "\"")				# open .txt file with default app
+# 	helpWn = tkinter.Toplevel(root)
+# 	helpWn.title('Motif 2 Text Help')
 
-def keypressFn(kpEvent):
+def keyPressFn(kpEvent):
 	try:
-		fn = {'Escape'	:	'exit()',			# exit() raises SystemExitif
+		fn = {'a' 		:	'allFn()',
+			  'n' 		:	'noneFn()',
+			  's' 		:	'selectFileFn()',
+			  'c' 		:	'createTextFn()',
+			  'h'		:	'helpFn()',
+			  'Escape'	:	'exit()',			# exit() raises SystemExitif
 			  'q' 		:	'exit()' } \
 			 [kpEvent.keysym]
 		eval(fn)
 	except KeyError:				# the 'default' case
 		return
 
-checkBoxes = []
-selectedItems = []
-filePath = ''
-fileName = ''
-
 root = tkinter.Tk()
-root.bind_all('<KeyPress>', keypressFn)
+root.bind_all('<KeyPress>', keyPressFn)
 
 rootFrame = ttk.Frame(root, padding = '12 12 12 12')
 rootFrame.pack()
@@ -101,6 +134,6 @@ helpBtn = ttk.Button(helpBtnFrame, text = 'Help', command = helpFn)
 helpBtn.grid(row = 0, column = 0, sticky = 'e')
 helpBtnFrame.grid(row = 2, column = 1, padx = 12, sticky = 'ew')
 
-root.title("Motif 2 Text")
+root.title('Motif 2 Text        v' + VERSION)
 root.resizable(False, False)
 root.mainloop()
