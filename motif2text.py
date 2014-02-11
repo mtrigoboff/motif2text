@@ -4,7 +4,7 @@
 @contact: http://spot.pcc.edu/~mtrigobo
 '''
 
-import os, os.path, sys
+import os.path, sys
 import tkinter
 from tkinter import BooleanVar, StringVar, ttk
 from tkinter.filedialog import askopenfilename
@@ -17,7 +17,7 @@ class CheckBox:
 		self.abbrev =		abbrev
 		self.variable =		BooleanVar()
 		self.checkBtn = 	ttk.Checkbutton(frame, text = label, variable = self.variable,
-											command = checkBoxChanged)
+											command = setCreateBtnState)
 
 # global variables
 VERSION = '1.0'
@@ -26,7 +26,7 @@ selectedItems = []
 motifFilePath = ''
 fileName = ''
 
-def checkBoxChanged():
+def setCreateBtnState():
 	atLeastOneChecked = False
 	for checkBox in checkBoxes:
 		if checkBox.variable.get():
@@ -39,13 +39,12 @@ def checkBoxChanged():
 def allFn():
 	for checkBox in checkBoxes:
 		checkBox.variable.set(True)
-	if len(motifFilePath) > 0:
-		createTextBtn['state'] = 'enabled'
+	setCreateBtnState()
 
 def noneFn():
 	for checkBox in checkBoxes:
 		checkBox.variable.set(False)
-	createTextBtn['state'] = 'disabled'		
+	setCreateBtnState()		
 
 def selectFileFn():
 	global motifFilePath
@@ -53,12 +52,17 @@ def selectFileFn():
 	fileName = os.path.basename(motifFilePath)
 	fileNameEntryVar.set(fileName)
 	if len(motifFilePath) > 0:
-		createTextBtn['state'] = 'enabled'
+		setCreateBtnState()
 
 def createTextFn():
+	if len(motifFilePath) == 0:
+		return
+	selectedItems = []
 	for checkBox in checkBoxes:
 		if checkBox.variable.get():
 			selectedItems.append(checkBox.abbrev)
+	if len(selectedItems) == 0:
+		return
 	realStdOut = sys.stdout
 	textFilePath = motifFilePath + '.txt'
 	textFile = open(textFilePath, 'w')
@@ -80,8 +84,8 @@ def keyPressFn(kpEvent):
 			  's' 		:	'selectFileFn()',
 			  'c' 		:	'createTextFn()',
 			  'h'		:	'helpFn()',
-			  'Escape'	:	'exit()',			# exit() raises SystemExitif
-			  'q' 		:	'exit()' } \
+			  'Escape'	:	'root.quit()',
+			  'q' 		:	'root.quit()' } \
 			 [kpEvent.keysym]
 		eval(fn)
 	except KeyError:				# the 'default' case
