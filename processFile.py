@@ -47,13 +47,8 @@ BANKS = ('PRE1', 'PRE2', 'PRE3', 'PRE4', 'PRE5', 'PRE6', 'PRE7', 'PRE8',
 		 'USR1', 'USR2', 'USR3', 'USR4', 'GM',   'GMDR', 'PDR',  'UDR')
 
 # globals
-global catalog
-global waveforms
-global waveformDuplicates
-global voiceBlockRead
-global voices
-global mixingVoices
-global sampleVoices
+global catalog, inputStream, mixingVoices, sampleVoices, \
+	   voices, voiceBlockRead, waveforms, waveformDuplicates
 
 def bankSectionNumberStr(bank, item):
 	number =			item & 0x7f
@@ -228,14 +223,8 @@ def doBlock(blockSpec):
 
 def processFile(fileName, selectedItems):
 	# globals
-	global inputStream
-	global catalog
-	global waveforms
-	global waveformDuplicates	
-	global voiceBlockRead
-	global voices
-	global mixingVoices
-	global sampleVoices
+	global catalog, inputStream, mixingVoices, sampleVoices, \
+		   voices, voiceBlockRead, waveforms, waveformDuplicates
 
 	catalog =				{}
 	waveforms =				[]
@@ -249,8 +238,9 @@ def processFile(fileName, selectedItems):
 	try:
 		inputStream = open(fileName, 'rb')
 	except IOError:
-		print('could not open file: %s' % fileName)
-		return
+		errStr = 'could not open file: %s' % fileName
+		print(errStr)
+		raise Exception(errStr)
 
 	# read file header
 	fileHdr = inputStream.read(FILE_HDR_LGTH)

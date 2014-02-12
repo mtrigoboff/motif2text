@@ -31,11 +31,8 @@ the Free Software Foundation, either version 3 of the License, or
 
 VERSION = '3.0'
 
-if len(sys.argv) > 2:							# print selected items
-	processFile(sys.argv[1], sys.argv[2:])
-elif len(sys.argv) == 2:						# print everything
-	processFile(sys.argv[1], [])
-else:											# print help information
+if len(sys.argv) == 1:
+	# print help information
 	print('pmf (Print Motif File)')
 	print('version %s' % VERSION)
 	print('by Michael Trigoboff\nmtrigoboff@comcast.net\nhttp://spot.pcc.edu/~mtrigobo')
@@ -43,3 +40,13 @@ else:											# print help information
 	for blockFlag, blockSpec in blockSpecs.items():
 		print('   %s    %s' % (blockFlag, blockSpec.name.lower()))
 	print(help2Str)
+
+# process file
+elif len(sys.argv) > 2:
+	arg2 = sys.argv[2:]
+else:
+	arg2 = ()
+try:
+	processFile(sys.argv[1], arg2)
+except Exception as e:
+	print('file problem (%s)' % e, file=sys.stderr)

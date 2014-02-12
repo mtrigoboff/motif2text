@@ -20,21 +20,24 @@ class CheckBox:
 											command = setCreateBtnState)
 
 # global variables
-VERSION = '1.01'
+VERSION = '1.02'
 checkBoxes = []
 selectedItems = []
 motifFilePath = ''
 fileName = ''
 
 def setCreateBtnState():
-	atLeastOneChecked = False
-	for checkBox in checkBoxes:
-		if checkBox.variable.get():
-			atLeastOneChecked = True
-	if atLeastOneChecked and len(motifFilePath) > 0:
-		createTextBtn['state'] = 'enabled'
+	if len(motifFilePath) == 0:
+		createTextBtn['state'] = 'disabled'
 	else:
-		createTextBtn['state'] = 'disabled'		
+		atLeastOneChecked = False
+		for checkBox in checkBoxes:
+			if checkBox.variable.get():
+				atLeastOneChecked = True
+		if atLeastOneChecked:
+			createTextBtn['state'] = 'enabled'
+		else:
+			createTextBtn['state'] = 'disabled'		
 
 def allFn():
 	for checkBox in checkBoxes:
@@ -47,16 +50,14 @@ def noneFn():
 	setCreateBtnState()		
 
 def selectFileFn():
-	global motifFilePath
+	global motifFilePath, fileName
 	motifFilePath = askopenfilename()
 	fileName = os.path.basename(motifFilePath)
 	fileNameEntryVar.set(fileName)
-	if len(motifFilePath) > 0:
-		setCreateBtnState()
+	setCreateBtnState()
 
 def createTextFn():
-	if len(motifFilePath) == 0:
-		return
+	global motifFilePath
 	selectedItems = []
 	for checkBox in checkBoxes:
 		if checkBox.variable.get():
@@ -65,14 +66,21 @@ def createTextFn():
 		return
 	realStdOut = sys.stdout
 	textFilePath = motifFilePath + '.txt'
-	textFile = open(textFilePath, 'w')
-	sys.stdout = textFile
-	processFile(motifFilePath, selectedItems)
-	textFile.close()
+	try:
+		textFile = open(textFilePath, 'w')
+		sys.stdout = textFile
+		processFile(motifFilePath, selectedItems)
+		textFile.close()
+		# need to enclose textFilePath in "..." so that space chars don't break path
+		os.startfile("\"" + textFilePath + "\"")				# open .txt file with default app
+		#os.system("notepad.exe \"" + textFilePath + "\"")		#open .txt file with notepad
+	except Exception as _:
+		fileNameEntryVar.set('problem reading \'%s\'' % fileName)
+		motifFilePath = ''
+		setCreateBtnState()
+		textFile.close()
+		os.remove(textFilePath)
 	sys.stdout = realStdOut
-	# need to enclose textFilePath in "..." so that space chars don't break path
-	os.startfile("\"" + textFilePath + "\"")				# open .txt file with default app
-	#os.system("notepad.exe \"" + textFilePath + "\"")		#open .txt file with notepad
 
 def helpFn():
 	os.startfile('motif2textHelp.pdf')						# open .pdf file with default app
@@ -84,6 +92,7 @@ def keyPressFn(kpEvent):
 			  's' 		:	'selectFileFn()',
 			  'c' 		:	'createTextFn()',
 			  'h'		:	'helpFn()',
+			  'F1'		:	'helpFn()',
 			  'Escape'	:	'root.quit()',
 			  'q' 		:	'root.quit()' } \
 			 [kpEvent.keysym]
