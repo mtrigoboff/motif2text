@@ -27,7 +27,7 @@ along with this program as file gpl.txt.
 If not, see <http://www.gnu.org/licenses/>.
 '''
 
-import collections, os.path, struct, sys
+import collections, os.path, struct
 
 SONG_ABBREV =		'Sg'
 PATTERN_ABBREV =	'Pt'
@@ -47,14 +47,13 @@ BANKS = ('PRE1', 'PRE2', 'PRE3', 'PRE4', 'PRE5', 'PRE6', 'PRE7', 'PRE8',
 		 'USR1', 'USR2', 'USR3', 'USR4', 'GM',   'GMDR', 'PDR',  'UDR')
 
 # globals
-catalog =				{}
-waveforms =				[]
-waveformDuplicates =	{}
-
-voiceBlockRead = 		False
-voices =				[]
-mixingVoices =			[]
-sampleVoices =			[]
+global catalog
+global waveforms
+global waveformDuplicates
+global voiceBlockRead
+global voices
+global mixingVoices
+global sampleVoices
 
 def bankSectionNumberStr(bank, item):
 	number =			item & 0x7f
@@ -228,7 +227,23 @@ def doBlock(blockSpec):
 		blockSpec.printFn(blockSpec.name)
 
 def processFile(fileName, selectedItems):
+	# globals
 	global inputStream
+	global catalog
+	global waveforms
+	global waveformDuplicates	
+	global voiceBlockRead
+	global voices
+	global mixingVoices
+	global sampleVoices
+
+	catalog =				{}
+	waveforms =				[]
+	waveformDuplicates =	{}
+	voiceBlockRead = 		False
+	voices =				[]
+	mixingVoices =			[]
+	sampleVoices =			[]
 	
 	# open file
 	try:

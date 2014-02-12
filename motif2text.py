@@ -20,7 +20,7 @@ class CheckBox:
 											command = setCreateBtnState)
 
 # global variables
-VERSION = '1.0'
+VERSION = '1.01'
 checkBoxes = []
 selectedItems = []
 motifFilePath = ''
