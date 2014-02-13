@@ -1,8 +1,8 @@
 syntax: glob
 *.X3A
-*.doc*
 cdw/*
 __pycache__/*
 build/*
 Thumbs.db
 test/*
+*.pdf
