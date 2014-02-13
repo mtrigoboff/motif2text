@@ -49,4 +49,4 @@ else:
 try:
 	processFile(sys.argv[1], arg2)
 except Exception as e:
-	print('file problem (%s)' % e, file=sys.stderr)
+	print('file problem (%s)' % e, file = sys.stderr)

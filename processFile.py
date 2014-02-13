@@ -32,12 +32,12 @@ import collections, os.path, struct
 SONG_ABBREV =		'Sg'
 PATTERN_ABBREV =	'Pt'
 
-FILE_HDR_LGTH =					 64
-CATALOG_ENTRY_LGTH =			  8
-BLOCK_HDR_LGTH =				 12
-ENTRY_HDR_LGTH =				  8
-ENTRY_FIXED_SIZE_DATA_LGTH =	 22
-DMST_DATA_SIZE =				560
+FILE_HDR_LGTH =						64
+CATALOG_ENTRY_LGTH =			 	 8
+BLOCK_HDR_LGTH =				 	12
+ENTRY_HDR_LGTH =				 	 8
+ENTRY_FIXED_SIZE_DATA_LGTH =	 	22
+ENTRY_FIXED_SIZE_DATA_LGTH_PRE_XF =	21
 
 FILE_HDR_ID =		b'YAMAHA-YSFC'
 BLOCK_ENTRY_ID =	b'Entr'
@@ -47,7 +47,7 @@ BANKS = ('PRE1', 'PRE2', 'PRE3', 'PRE4', 'PRE5', 'PRE6', 'PRE7', 'PRE8',
 		 'USR1', 'USR2', 'USR3', 'USR4', 'GM',   'GMDR', 'PDR',  'UDR')
 
 # globals
-global catalog, inputStream, mixingVoices, sampleVoices, \
+global catalog, fileVersion, inputStream, mixingVoices, sampleVoices, \
 	   voices, voiceBlockRead, waveforms, waveformDuplicates
 
 def bankSectionNumberStr(bank, item):
@@ -61,7 +61,10 @@ class MasterTargetType:
 	MST_VOICE, MST_PERFORMANCE, MST_PATTERN, MST_SONG = range(4)
 
 def printMaster(entryNumber, entryName, data):
-	dataId, targetType, targetBank, target = struct.unpack('> 4s 32x B x B B 520x', data)
+	if fileVersion[0] == 1 and fileVersion[1] == 0 and fileVersion[2] < 2:
+		dataId, targetType, targetBank, target = struct.unpack('> 4s 32x B x B B 328x', data)
+	else:
+		dataId, targetType, targetBank, target = struct.unpack('> 4s 32x B x B B 520x', data)
 	assert dataId == BLOCK_DATA_ID, BLOCK_DATA_ID
 	targetBank &= 0x0F		# guess about keeping bank in range
 	print('%03d: %-20s ' % (entryNumber + 1, entryName), end='')
@@ -194,11 +197,17 @@ def doBlock(blockSpec):
 
 	if blockSpec.ident != b'EVCE' or not voiceBlockRead:
 		for _ in range(0, nEntries):
-			entryHdr = inputStream.read(ENTRY_HDR_LGTH + ENTRY_FIXED_SIZE_DATA_LGTH)
-			entryId, entryLgth, dataSize, dataOffset, entryNumber = \
-				struct.unpack('> 4s I 4x I 4x I I 2x', entryHdr)
+			if fileVersion[0] == 1 and fileVersion[1] == 0 and fileVersion[2] < 2:
+				entryHdr = inputStream.read(ENTRY_HDR_LGTH + ENTRY_FIXED_SIZE_DATA_LGTH_PRE_XF)
+				entryId, entryLgth, dataSize, dataOffset, entryNumber = \
+					struct.unpack('> 4s I 4x I 4x I I x', entryHdr)
+				entryStrs = inputStream.read(entryLgth - ENTRY_FIXED_SIZE_DATA_LGTH_PRE_XF)
+			else:
+				entryHdr = inputStream.read(ENTRY_HDR_LGTH + ENTRY_FIXED_SIZE_DATA_LGTH)
+				entryId, entryLgth, dataSize, dataOffset, entryNumber = \
+					struct.unpack('> 4s I 4x I 4x I I 2x', entryHdr)
+				entryStrs = inputStream.read(entryLgth - ENTRY_FIXED_SIZE_DATA_LGTH)
 			assert entryId == BLOCK_ENTRY_ID, BLOCK_ENTRY_ID
-			entryStrs = inputStream.read(entryLgth - ENTRY_FIXED_SIZE_DATA_LGTH)
 			entryStrs = entryStrs.decode('ascii')
 			entryName = entryStrs.rstrip('\x00').split('\x00')[0]
 			if blockSpec.needsData:
@@ -223,7 +232,7 @@ def doBlock(blockSpec):
 
 def processFile(fileName, selectedItems):
 	# globals
-	global catalog, inputStream, mixingVoices, sampleVoices, \
+	global catalog, fileVersion, inputStream, mixingVoices, sampleVoices, \
 		   voices, voiceBlockRead, waveforms, waveformDuplicates
 
 	catalog =				{}
@@ -246,7 +255,8 @@ def processFile(fileName, selectedItems):
 	fileHdr = inputStream.read(FILE_HDR_LGTH)
 	fileHdrId, fileVersion, catalogSize = struct.unpack('> 16s 16s I 28x', fileHdr)
 	assert fileHdrId[0:len(FILE_HDR_ID)] == FILE_HDR_ID, FILE_HDR_ID
-	fileVersion = fileVersion.decode('ascii').rstrip('\x00')
+	fileVersionStr = fileVersion.decode('ascii').rstrip('\x00')
+	fileVersion = tuple(map(int, fileVersionStr.split('.')))
 	
 	# build catalog
 	for _ in range(0, int(catalogSize / CATALOG_ENTRY_LGTH)):
@@ -254,7 +264,7 @@ def processFile(fileName, selectedItems):
 		entryId, offset = struct.unpack('> 4s I', entry)
 		catalog[entryId] = offset
 
-	print(os.path.basename(fileName), '\n')
+	print('%s\n(Motif file format version %s)\n' % (os.path.basename(fileName), fileVersionStr))
 	if len(selectedItems) == 0:					# print everything
 		for blockSpec in blockSpecs.values():
 			doBlock(blockSpec)
