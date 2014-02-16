@@ -12,19 +12,21 @@ from tkinter.filedialog import askopenfilename
 from processFile import blockSpecs, processFile
 
 class CheckBox:
-	def __init__(self, label, abbrev, frame):
+	def __init__(self, label, underlineIndex, abbrev, frame):
 		self.label =		label
 		self.abbrev =		abbrev
 		self.variable =		BooleanVar()
 		self.checkBtn = 	ttk.Checkbutton(frame, text = label, variable = self.variable,
-											command = setCreateBtnState)
+											command = setCreateBtnState, underline = underlineIndex)
+		checkBoxShortcuts[label[underlineIndex].lower()] = self
 
 # global variables
-VERSION = '1.03'
-checkBoxes = []
-selectedItems = []
-motifFilePath = ''
-fileName = ''
+VERSION =			'1.04'
+checkBoxes =		[]
+checkBoxShortcuts = {}
+selectedItems =		[]
+motifFilePath =		''
+fileName =			''
 
 def setCreateBtnState():
 	if len(motifFilePath) == 0:
@@ -85,16 +87,32 @@ def createTextFn():
 def helpFn():
 	os.startfile('motif2textHelp.pdf')						# open .pdf file with default app
 
+def checkBoxFn(ch):
+	checkBox = checkBoxShortcuts[ch]
+	checkBox.variable.set(not checkBox.variable.get())
+
 def keyPressFn(kpEvent):
 	try:
 		fn = {'a' 		:	'allFn()',
-			  'n' 		:	'noneFn()',
-			  's' 		:	'selectFileFn()',
 			  'c' 		:	'createTextFn()',
+			  'e'		:	'checkBoxFn(kpEvent.keysym)',
+			  'f'		:	'checkBoxFn(kpEvent.keysym)',
+			  'g'		:	'checkBoxFn(kpEvent.keysym)',
+			  'i'		:	'checkBoxFn(kpEvent.keysym)',
+			  'l'		:	'checkBoxFn(kpEvent.keysym)',
+			  'm'		:	'checkBoxFn(kpEvent.keysym)',
 			  'h'		:	'helpFn()',
+			  'n' 		:	'noneFn()',
+			  'p'		:	'checkBoxFn(kpEvent.keysym)',
+			  'q' 		:	'root.quit()',
+			  'r'		:	'checkBoxFn(kpEvent.keysym)',
+			  's' 		:	'selectFileFn()',
+			  't'		:	'checkBoxFn(kpEvent.keysym)',
+			  'v'		:	'checkBoxFn(kpEvent.keysym)',
+			  'w'		:	'checkBoxFn(kpEvent.keysym)',
+			  'x'		:	'checkBoxFn(kpEvent.keysym)',
 			  'F1'		:	'helpFn()',
-			  'Escape'	:	'root.quit()',
-			  'q' 		:	'root.quit()' } \
+			  'Escape'	:	'root.quit()' } \
 			 [kpEvent.keysym]
 		eval(fn)
 	except KeyError:				# the 'default' case
@@ -110,15 +128,15 @@ selectItemsFrame = ttk.LabelFrame(rootFrame, text = 'Select Items', padding = '6
 checkBoxFrame = ttk.Frame(selectItemsFrame, padding = '6 6 6 6')
 i = 0
 for abbrev, blockSpec in blockSpecs.items():
-	checkBox = CheckBox(blockSpec.name, abbrev, checkBoxFrame)
+	checkBox = CheckBox(blockSpec.name, blockSpec.underline, abbrev, checkBoxFrame)
 	checkBoxes.append(checkBox)
 	checkBox.checkBtn.grid(row = int(i % 6), column = int(i / 6), sticky = "w", padx = 6)
 	i += 1
 checkBoxFrame.pack(side = 'left')
 checkBoxBtnsFrame = ttk.Frame(selectItemsFrame, padding = '6 6 6 6')
-allBtn = ttk.Button(checkBoxBtnsFrame, text = 'All', command = allFn)
+allBtn = ttk.Button(checkBoxBtnsFrame, text = 'All', command = allFn, underline = 0)
 allBtn.grid(row = 0, column = 2, padx = 6, pady = 12)
-noneBtn = ttk.Button(checkBoxBtnsFrame, text = 'None', command = noneFn)
+noneBtn = ttk.Button(checkBoxBtnsFrame, text = 'None', command = noneFn, underline = 0)
 noneBtn.grid(row = 1, column = 2, padx = 6, pady = 12)
 checkBoxBtnsFrame.pack(side = 'left')
 selectItemsFrame.grid(row = 0, column = 0, columnspan = 2)
@@ -132,14 +150,15 @@ fileNameEntry.grid(row = 0, column = 1, sticky = 'w')
 fileFrame.grid(row = 1, column = 0, sticky = 'w', columnspan = 2)
 
 btnsFrame = ttk.Frame(rootFrame, padding = '8 12 12 12')
-selectFileBtn = ttk.Button(btnsFrame, text = 'Select File', command = selectFileFn)
+selectFileBtn = ttk.Button(btnsFrame, text = 'Select File', command = selectFileFn, underline = 0)
 selectFileBtn.grid(row = 0, column = 0, sticky = 'w', padx = 6)
-createTextBtn = ttk.Button(btnsFrame, text = 'Create Text', command = createTextFn, state = 'disabled')
+createTextBtn = \
+	ttk.Button(btnsFrame, text = 'Create Text', command = createTextFn, state = 'disabled', underline = 0)
 createTextBtn.grid(row = 0, column = 1, sticky = 'w', padx = 12)
 btnsFrame.grid(row = 2, column = 0, padx = 12, sticky = 'ew')
 
 helpBtnFrame = ttk.Frame(rootFrame, padding = '12 12 12 12')
-helpBtn = ttk.Button(helpBtnFrame, text = 'Help', command = helpFn)
+helpBtn = ttk.Button(helpBtnFrame, text = 'Help', command = helpFn, underline = 0)
 helpBtn.grid(row = 0, column = 0, sticky = 'e')
 helpBtnFrame.grid(row = 2, column = 1, padx = 12, sticky = 'ew')
 

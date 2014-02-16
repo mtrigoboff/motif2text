@@ -43,10 +43,10 @@ if len(sys.argv) == 1:
 
 # process file
 elif len(sys.argv) > 2:
-	arg2 = sys.argv[2:]
+	itemFlags = sys.argv[1:-1]
 else:
-	arg2 = ()
+	itemFlags = ()
 try:
-	processFile(sys.argv[1], arg2)
+	processFile(sys.argv[-1], itemFlags)
 except Exception as e:
 	print('file problem (%s)' % e, file = sys.stderr)

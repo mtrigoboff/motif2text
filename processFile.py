@@ -46,9 +46,9 @@ BLOCK_DATA_ID =		b'Data'
 BANKS = ('PRE1', 'PRE2', 'PRE3', 'PRE4', 'PRE5', 'PRE6', 'PRE7', 'PRE8',
 		 'USR1', 'USR2', 'USR3', 'USR4', 'GM',   'GMDR', 'PDR',  'UDR')
 
-# globals
-global catalog, fileVersion, inputStream, mixingVoices, sampleVoices, \
-	   voices, voiceBlockRead, waveforms, waveformDuplicates
+# globals (this is just here for documentation)
+global catalog, fileVersion, inputStream, mixingVoices, \
+	   sampleVoices, voices, voiceBlockRead, waveformTypes
 
 def bankSectionNumberStr(bank, item):
 	number =			item & 0x7f
@@ -126,25 +126,55 @@ def printSampleVoices(name):
 	print('%s (%d)' % (name, len(sampleVoices)))
 	printSpecialVoices(sampleVoices)
 
-def doWaveform(entryNumber, entryName, data):					# entryNumber range is [0 .. 2047]
-	waveformNumber = entryNumber - 128
-	waveformName = entryName.split(':')[-1]
-	waveforms.append([waveformNumber, waveformName])
-	if waveformName in waveformDuplicates:
-		waveformDuplicates[waveformName].append(waveformNumber)
+class WaveformType:
+	def __init__(self, name, lowNumber, highNumber):
+		self.name =			name
+		self.lowNumber =	lowNumber
+		self.highNumber =	highNumber
+		self.list =			[]
+		self.duplicates =	{}
+
+def processWaveform(wfNumber, wfName, wfList, wfDuplicates):
+	wfList.append([wfNumber, wfName])
+	if wfName in wfDuplicates:
+		wfDuplicates[wfName].append(wfNumber)
 	else:
-		waveformDuplicates[waveformName] = [waveformNumber]
+		wfDuplicates[wfName] = [wfNumber]
+
+def doWaveform(entryNumber, entryName, data):					# entryNumber range is [0 .. 2047]
+	categorized = True
+	waveformName = entryName.split(':')[-1]
+	for waveformType in waveformTypes:
+		if entryNumber >= waveformType.lowNumber and entryNumber <= waveformType.highNumber:
+			processWaveform(entryNumber, waveformName, waveformType.list, waveformType.duplicates)
+			categorized = True
+			break
+	if not categorized:
+		raise Exception('uncategorized waveform %s(%d)' % (entryName, entryNumber))
+
+def printWaveformType(wfTypeName, wfTypeLowNumber, wfTypeList, wfTypeDuplicates):
+	if len(wfTypeList) > 0:
+		print('%s (%d)' % (wfTypeName, len(wfTypeList)))
+		for wf in wfTypeList:
+			wfNumber, wfName = wf
+			wfNumbers = wfTypeDuplicates[wfName]
+			print('%04d:' % (wfNumber - wfTypeLowNumber + 1), wfName)
+			if len(wfNumbers) > 1:
+				print('  duplicates: ', end='')
+				first = True
+				for wfn in wfNumbers:
+					if wfn != wfNumber:
+						if first:
+							first = False
+						else:
+							print(', ', end='')
+						print('%04d' % (wfn - wfTypeLowNumber + 1), end='')
+				print()
+		print()
 
 def printWaveforms(name):
-	print('%s (%d)' % (name, len(waveforms)))
-	for waveform in waveforms:
-		waveformNumber, waveformName = waveform
-		waveformNumbers = waveformDuplicates[waveformName]
-		print('%04d:' % (waveformNumber), waveformName)			# waveformNumber range is [1 .. 2048]
-		if len(waveformNumbers) > 1:
-			print('  duplicates: ', end='')
-			print([wfn for wfn in waveformNumbers if wfn != waveformNumber])
-	print()
+	for wfType in waveformTypes:
+		printWaveformType(wfType.name, wfType.lowNumber, wfType.list, wfType.duplicates)
 
 def printUserArpeggio(entryNumber, entryName, data):
 	print('%03d:' % (entryNumber + 1), entryName.split(':')[-1])
@@ -153,27 +183,28 @@ def printDefault(entryNumber, entryName, data):
 	print('%02d:' % (entryNumber + 1), entryName)
 
 class BlockSpec:
-	def __init__(self, ident, name, doFn, printFn, needsData):
+	def __init__(self, ident, name, underline, doFn, printFn, needsData):
 		self.ident =			ident
 		self.name =				name
+		self.underline =		underline		# which checkbox char to underline in GUI
 		self.doFn =				doFn			# what to do with each item of this type
 		self.printFn =			printFn			# print items of this type if not done by doFn
 		self.needsData =		needsData
 
 # when printing out all blocks, they will print out in this order
 blockSpecs = collections.OrderedDict((
-	('sg',  BlockSpec(b'ESNG',	'Songs',			printDefault,		None,				False)),		\
-	('pt',  BlockSpec(b'EPTN',	'Patterns',			printDefault,		None,				False)),		\
-	('ms',  BlockSpec(b'EMST',	'Masters',			printMaster,		None,				True)),			\
-	('pf',  BlockSpec(b'EPFM',	'Performances',		printPerformance,	None,				False)),		\
-	('vc',  BlockSpec(b'EVCE',	'Voices',			doVoice,			printVoices,		False)),		\
-	('pc',  BlockSpec(b'EPCH',	'Pattern Chains',	printDefault,		None,				False)),		\
-	('ua',  BlockSpec(b'EARP',	'User Arpeggios',	printUserArpeggio,	None,				False)),		\
-	('mv',  BlockSpec(b'EVCE',	'Mixing Voices',	doVoice,			printMixingVoices,	False)),		\
-	('sm',  BlockSpec(b'ESMT',	'Song Mixings',		printDefault,		None,				False)),		\
-	('pm',  BlockSpec(b'EPMT',	'Pattern Mixings',	printDefault,		None,				False)),		\
-	('wf',  BlockSpec(b'EWFM',	'Waveforms',		doWaveform,			printWaveforms,		False)),		\
-	('sv',  BlockSpec(b'EVCE',	'Sample Voices',	doVoice,			printSampleVoices,	False)),		\
+	('sg',  BlockSpec(b'ESNG',	'Songs',			3, printDefault,		None,				False)),		\
+	('pt',  BlockSpec(b'EPTN',	'Patterns',			0, printDefault,		None,				False)),		\
+	('ms',  BlockSpec(b'EMST',	'Masters',			0, printMaster,			None,				True)),			\
+	('pf',  BlockSpec(b'EPFM',	'Performances',		3, printPerformance,	None,				False)),		\
+	('vc',  BlockSpec(b'EVCE',	'Voices',			0, doVoice,				printVoices,		False)),		\
+	('pc',  BlockSpec(b'EPCH',	'Pattern Chains',	2, printDefault,		None,				False)),		\
+	('ua',  BlockSpec(b'EARP',	'User Arpeggios',	6, printUserArpeggio,	None,				False)),		\
+	('mv',  BlockSpec(b'EVCE',	'Mixing Voices',	2, doVoice,				printMixingVoices,	False)),		\
+	('sm',  BlockSpec(b'ESMT',	'Song Mixings',		6, printDefault,		None,				False)),		\
+	('pm',  BlockSpec(b'EPMT',	'Pattern Mixings',	4, printDefault,		None,				False)),		\
+	('wf',  BlockSpec(b'EWFM',	'Waveforms',		0, doWaveform,			printWaveforms,		False)),		\
+	('sv',  BlockSpec(b'EVCE',	'Sample Voices',	4, doVoice,				printSampleVoices,	False)),		\
 	#				   EWIM seems to be a duplicate of EWFM
 	# voice data of the 3 different kinds is collected from the EVCE block
 	))
@@ -232,16 +263,17 @@ def doBlock(blockSpec):
 
 def processFile(fileName, selectedItems):
 	# globals
-	global catalog, fileVersion, inputStream, mixingVoices, sampleVoices, \
-		   voices, voiceBlockRead, waveforms, waveformDuplicates
+	global catalog, fileVersion, inputStream, mixingVoices, \
+		   sampleVoices, voices, voiceBlockRead, waveformTypes
 
-	catalog =				{}
-	waveforms =				[]
-	waveformDuplicates =	{}
-	voiceBlockRead = 		False
-	voices =				[]
-	mixingVoices =			[]
-	sampleVoices =			[]
+	catalog =			{}
+	mixingVoices =		[]
+	sampleVoices =		[]
+	voices =			[]
+	voiceBlockRead = 	False
+	waveformTypes =		(WaveformType('User Waveforms',   1,  128),
+						 WaveformType('FL1 Waveforms',  129, 2176),
+						 WaveformType('FL2 Waveforms', 2177, 4224))
 	
 	# open file
 	try:
