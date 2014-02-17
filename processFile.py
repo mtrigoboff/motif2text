@@ -169,18 +169,18 @@ def printWaveforms(name):
 			print('%s (%d)' % (wfType.name, len(wfType.list)))
 			for wf in wfType.list:
 				wfNumber, wfName = wf
-				wfNumbers = wfType.duplicates[wfName]
+				wfDuplicateNumbers = wfType.duplicates[wfName]
 				print('%04d:' % (wfNumber - wfType.lowNumber + 1), wfName)
-				if len(wfNumbers) > 1:
+				if len(wfDuplicateNumbers) > 1:
 					print('  duplicates: ', end='')
 					first = True
-					for wfn in wfNumbers:
-						if wfn != wfNumber:
+					for wfDuplicateNumber in wfDuplicateNumbers:
+						if wfDuplicateNumber != wfNumber:
 							if first:
 								first = False
 							else:
 								print(', ', end='')
-							print('%04d' % (wfn - wfType.lowNumber + 1), end='')
+							print('%04d' % (wfDuplicateNumber - wfType.lowNumber + 1), end='')
 					print()
 			print()
 
