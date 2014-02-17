@@ -59,6 +59,9 @@ def bankSectionNumberStr(bank, item):
 	itemInSection =		number & 0x0f
 	return '%s:%03d(%c%02d)' % (BANKS[bank], number + 1, ord('A') + section, itemInSection + 1)
 
+def bankSectNumStrFromEntryNum(entryNumber):
+	return bankSectionNumberStr(((entryNumber & 0x0780) >> 7) + 8, entryNumber & 0x007F)
+
 # enum corresponds to how these types are defined in the Motif file
 class MasterTargetType:
 	MST_VOICE, MST_PERFORMANCE, MST_PATTERN, MST_SONG = range(4)
@@ -70,7 +73,7 @@ def printMaster(entryNumber, entryName, data):
 		dataId, targetType, targetBank, target = struct.unpack('> 4s 32x B x B B 520x', data)
 	assert dataId == BLOCK_DATA_ID, BLOCK_DATA_ID
 	targetBank &= 0x0F		# guess about keeping bank in range
-	print('%03d: %-20s ' % (entryNumber + 1, entryName), end='')
+	print('%s: %-20s ' % (bankSectNumStrFromEntryNum(entryNumber), entryName), end='')
 	if targetType == MasterTargetType.MST_VOICE:
 		print('Vc', bankSectionNumberStr(targetBank, target))
 	elif targetType == MasterTargetType.MST_PERFORMANCE:
@@ -85,8 +88,7 @@ def printMaster(entryNumber, entryName, data):
 		print(' %02d' % (target + 1))
 
 def printPerformance(entryNumber, entryName, data):
-	print(bankSectionNumberStr(((entryNumber & 0x0780) >> 7) + 8, entryNumber & 0x007F),
-		  entryName.split(':')[-1])
+	print(bankSectNumStrFromEntryNum(entryNumber), entryName.split(':')[-1])
 
 def doVoice(entryNumber, entryName, data):
 	bankNumber = (entryNumber & 0x00FF00) >> 8
