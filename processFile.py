@@ -153,12 +153,6 @@ def doWaveform(entryNumber, entryName, data):					# entryNumber range is [0 .. 2
 		for waveformType in waveformTypes:
 			if entryNumber >= waveformType.lowNumber and entryNumber <= waveformType.highNumber:
 				processWaveform(entryNumber, waveformName, waveformType)
-# 				waveformType.list.append([entryNumber, waveformName])
-# 				if waveformName in waveformType.duplicates:
-# 					waveformType.duplicates[waveformName].append(entryNumber)
-# 				else:
-# 					waveformType.duplicates[waveformName] = [entryNumber]
-# 				categorized = True
 				break
 		if not categorized:
 			raise Exception('uncategorized waveform %s(%d)' % (entryName, entryNumber))
