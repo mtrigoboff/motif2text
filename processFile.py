@@ -50,6 +50,9 @@ BANKS = ('PRE1', 'PRE2', 'PRE3', 'PRE4', 'PRE5', 'PRE6', 'PRE7', 'PRE8',
 global catalog, fileVersion, inputStream, mixingVoices, \
 	   sampleVoices, voices, voiceBlockRead, waveformTypes
 
+def fileVersionPreXF():
+	return fileVersion[0] == 1 and fileVersion[1] == 0 and fileVersion[2] < 2
+
 def bankSectionNumberStr(bank, item):
 	number =			item & 0x7f
 	section =			number >> 4
@@ -134,47 +137,52 @@ class WaveformType:
 		self.list =			[]
 		self.duplicates =	{}
 
-def processWaveform(wfNumber, wfName, wfList, wfDuplicates):
-	wfList.append([wfNumber, wfName])
-	if wfName in wfDuplicates:
-		wfDuplicates[wfName].append(wfNumber)
+def processWaveform(wfNumber, wfName, wfType):
+	wfType.list.append([wfNumber, wfName])
+	if wfName in wfType.duplicates:
+		wfType.duplicates[wfName].append(wfNumber)
 	else:
-		wfDuplicates[wfName] = [wfNumber]
-
+		wfType.duplicates[wfName] = [wfNumber]
+	
 def doWaveform(entryNumber, entryName, data):					# entryNumber range is [0 .. 2047]
 	categorized = True
 	waveformName = entryName.split(':')[-1]
-	for waveformType in waveformTypes:
-		if entryNumber >= waveformType.lowNumber and entryNumber <= waveformType.highNumber:
-			processWaveform(entryNumber, waveformName, waveformType.list, waveformType.duplicates)
-			categorized = True
-			break
-	if not categorized:
-		raise Exception('uncategorized waveform %s(%d)' % (entryName, entryNumber))
-
-def printWaveformType(wfTypeName, wfTypeLowNumber, wfTypeList, wfTypeDuplicates):
-	if len(wfTypeList) > 0:
-		print('%s (%d)' % (wfTypeName, len(wfTypeList)))
-		for wf in wfTypeList:
-			wfNumber, wfName = wf
-			wfNumbers = wfTypeDuplicates[wfName]
-			print('%04d:' % (wfNumber - wfTypeLowNumber + 1), wfName)
-			if len(wfNumbers) > 1:
-				print('  duplicates: ', end='')
-				first = True
-				for wfn in wfNumbers:
-					if wfn != wfNumber:
-						if first:
-							first = False
-						else:
-							print(', ', end='')
-						print('%04d' % (wfn - wfTypeLowNumber + 1), end='')
-				print()
-		print()
+	if fileVersionPreXF():
+		processWaveform(entryNumber, waveformName, waveformTypes[0])
+	else:
+		for waveformType in waveformTypes:
+			if entryNumber >= waveformType.lowNumber and entryNumber <= waveformType.highNumber:
+				processWaveform(entryNumber, waveformName, waveformType)
+# 				waveformType.list.append([entryNumber, waveformName])
+# 				if waveformName in waveformType.duplicates:
+# 					waveformType.duplicates[waveformName].append(entryNumber)
+# 				else:
+# 					waveformType.duplicates[waveformName] = [entryNumber]
+# 				categorized = True
+				break
+		if not categorized:
+			raise Exception('uncategorized waveform %s(%d)' % (entryName, entryNumber))
 
 def printWaveforms(name):
 	for wfType in waveformTypes:
-		printWaveformType(wfType.name, wfType.lowNumber, wfType.list, wfType.duplicates)
+		if len(wfType.list) > 0:
+			print('%s (%d)' % (wfType.name, len(wfType.list)))
+			for wf in wfType.list:
+				wfNumber, wfName = wf
+				wfNumbers = wfType.duplicates[wfName]
+				print('%04d:' % (wfNumber - wfType.lowNumber + 1), wfName)
+				if len(wfNumbers) > 1:
+					print('  duplicates: ', end='')
+					first = True
+					for wfn in wfNumbers:
+						if wfn != wfNumber:
+							if first:
+								first = False
+							else:
+								print(', ', end='')
+							print('%04d' % (wfn - wfType.lowNumber + 1), end='')
+					print()
+			print()
 
 def printUserArpeggio(entryNumber, entryName, data):
 	print('%03d:' % (entryNumber + 1), entryName.split(':')[-1])
@@ -228,7 +236,7 @@ def doBlock(blockSpec):
 
 	if blockSpec.ident != b'EVCE' or not voiceBlockRead:
 		for _ in range(0, nEntries):
-			if fileVersion[0] == 1 and fileVersion[1] == 0 and fileVersion[2] < 2:
+			if fileVersionPreXF():
 				entryHdr = inputStream.read(ENTRY_HDR_LGTH + ENTRY_FIXED_SIZE_DATA_LGTH_PRE_XF)
 				entryId, entryLgth, dataSize, dataOffset, entryNumber = \
 					struct.unpack('> 4s I 4x I 4x I I x', entryHdr)
@@ -271,9 +279,9 @@ def processFile(fileName, selectedItems):
 	sampleVoices =		[]
 	voices =			[]
 	voiceBlockRead = 	False
-	waveformTypes =		(WaveformType('User Waveforms',   1,  128),
-						 WaveformType('FL1 Waveforms',  129, 2176),
-						 WaveformType('FL2 Waveforms', 2177, 4224))
+	waveformTypes =		(WaveformType('User Waveforms',	   1,  128),
+						 WaveformType('FL1 Waveforms',	 129, 2176),
+						 WaveformType('FL2 Waveforms',	2177, 4224))
 	
 	# open file
 	try:
