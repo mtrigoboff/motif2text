@@ -73,9 +73,14 @@ def createTextFn():
 		sys.stdout = textFile
 		processFile(motifFilePath, selectedItems)
 		textFile.close()
-		# need to enclose textFilePath in "..." so that space chars don't break path
-		os.startfile("\"" + textFilePath + "\"")				# open .txt file with default app
-		#os.system("notepad.exe \"" + textFilePath + "\"")		#open .txt file with notepad
+		textFilePath = "\"" + textFilePath + "\""
+			# need to enclose textFilePath in "..." so that space chars don't break path
+		# open .txt file with default app
+		if sys.platform == 'win32' or sys.platform == 'win64':		# windows
+			os.startfile(textFilePath)
+			#os.system("notepad.exe \"" + textFilePath + "\"")			#open .txt file with notepad
+		else:														# mac, linux
+			os.system("open " + textFilePath)
 	except Exception as _:
 		fileNameEntryVar.set('problem reading \'%s\'' % fileName)
 		motifFilePath = ''
@@ -166,6 +171,6 @@ helpBtn = ttk.Button(helpBtnFrame, text = 'Help', command = helpFn, underline = 
 helpBtn.grid(row = 0, column = 0, sticky = 'e')
 helpBtnFrame.grid(row = 2, column = 1, padx = 12, sticky = 'ew')
 
-root.title('Motif 2 Text        v%s(%s)' % (VERSION, PF_VERSION))
+root.title('motif2text    v%s(%s)' % (VERSION, PF_VERSION))
 root.resizable(False, False)
 root.mainloop()
