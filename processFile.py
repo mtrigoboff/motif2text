@@ -29,6 +29,8 @@ If not, see <http://www.gnu.org/licenses/>.
 
 import collections, os.path, struct
 
+VERSION = '4.0'
+
 SONG_ABBREV =		'Sg'
 PATTERN_ABBREV =	'Pt'
 
@@ -115,11 +117,13 @@ def printVoices(name):
 def printSpecialVoices(voices):
 	for voice in voices:
 		_, bankNumber, voiceNumber, voiceName = voice
-		if bankNumber > 192:			# guess at where it switches to pattern
+		if bankNumber >= 192:			# guess at where it switches to pattern
 			songPatternStr = PATTERN_ABBREV
+			bankNumber -= 191
 		else:
 			songPatternStr = SONG_ABBREV
-		print('%s %02d:%03d %s' % (songPatternStr, bankNumber - 127, voiceNumber - 127, voiceName))
+			bankNumber -= 127
+		print('%s %02d:%03d %s' % (songPatternStr, bankNumber, voiceNumber - 127, voiceName))
 	print()
 
 def printMixingVoices(name):
@@ -197,15 +201,15 @@ class BlockSpec:
 
 # when printing out all blocks, they will print out in this order
 blockSpecs = collections.OrderedDict((
-	('sg',  BlockSpec(b'ESNG',	'Songs',			3, printDefault,		None,				False)),		\
+	('sg',  BlockSpec(b'ESNG',	'Songs',			0, printDefault,		None,				False)),		\
 	('pt',  BlockSpec(b'EPTN',	'Patterns',			0, printDefault,		None,				False)),		\
 	('ms',  BlockSpec(b'EMST',	'Masters',			0, printMaster,			None,				True)),			\
-	('pf',  BlockSpec(b'EPFM',	'Performances',		3, printPerformance,	None,				False)),		\
+	('pf',  BlockSpec(b'EPFM',	'Performances',		4, printPerformance,	None,				False)),		\
 	('vc',  BlockSpec(b'EVCE',	'Voices',			0, doVoice,				printVoices,		False)),		\
-	('pc',  BlockSpec(b'EPCH',	'Pattern Chains',	2, printDefault,		None,				False)),		\
+	('pc',  BlockSpec(b'EPCH',	'Pattern Chains',	8, printDefault,		None,				False)),		\
 	('ua',  BlockSpec(b'EARP',	'User Arpeggios',	6, printUserArpeggio,	None,				False)),		\
 	('mv',  BlockSpec(b'EVCE',	'Mixing Voices',	2, doVoice,				printMixingVoices,	False)),		\
-	('sm',  BlockSpec(b'ESMT',	'Song Mixings',		6, printDefault,		None,				False)),		\
+	('sm',  BlockSpec(b'ESMT',	'Song Mixings',		3, printDefault,		None,				False)),		\
 	('pm',  BlockSpec(b'EPMT',	'Pattern Mixings',	4, printDefault,		None,				False)),		\
 	('wf',  BlockSpec(b'EWFM',	'Waveforms',		0, doWaveform,			printWaveforms,		False)),		\
 	('sv',  BlockSpec(b'EVCE',	'Sample Voices',	4, doVoice,				printSampleVoices,	False)),		\
@@ -237,14 +241,16 @@ def doBlock(blockSpec):
 				entryId, entryLgth, dataSize, dataOffset, entryNumber = \
 					struct.unpack('> 4s I 4x I 4x I I x', entryHdr)
 				entryStrs = inputStream.read(entryLgth - ENTRY_FIXED_SIZE_DATA_LGTH_PRE_XF)
+				
 			else:
 				entryHdr = inputStream.read(ENTRY_HDR_LGTH + ENTRY_FIXED_SIZE_DATA_LGTH)
 				entryId, entryLgth, dataSize, dataOffset, entryNumber = \
 					struct.unpack('> 4s I 4x I 4x I I 2x', entryHdr)
 				entryStrs = inputStream.read(entryLgth - ENTRY_FIXED_SIZE_DATA_LGTH)
 			assert entryId == BLOCK_ENTRY_ID, BLOCK_ENTRY_ID
-			entryStrs = entryStrs.decode('ascii')
-			entryName = entryStrs.rstrip('\x00').split('\x00')[0]
+			entryStrsDecoded = entryStrs.decode('ascii')
+			entryName = entryStrsDecoded.rstrip('\x00').split('\x00')[0].split('\x03')[0]
+				# splitting at \x03 strips trailing garbage seen in XS files
 			if blockSpec.needsData:
 				entryPosn = inputStream.tell()
 				dataIdent = bytearray(blockSpec.ident)

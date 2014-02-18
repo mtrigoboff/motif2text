@@ -9,7 +9,7 @@ import tkinter
 from tkinter import BooleanVar, StringVar, ttk
 from tkinter.filedialog import askopenfilename
 
-from processFile import blockSpecs, processFile
+from processFile import blockSpecs, processFile, VERSION as PF_VERSION
 
 class CheckBox:
 	def __init__(self, label, underlineIndex, abbrev, frame):
@@ -21,7 +21,7 @@ class CheckBox:
 		checkBoxShortcuts[label[underlineIndex].lower()] = self
 
 # global variables
-VERSION =			'1.04'
+VERSION =			'1.05'
 checkBoxes =		[]
 checkBoxShortcuts = {}
 selectedItems =		[]
@@ -88,26 +88,30 @@ def helpFn():
 	os.startfile('motif2textHelp.pdf')						# open .pdf file with default app
 
 def checkBoxFn(ch):
-	checkBox = checkBoxShortcuts[ch]
-	checkBox.variable.set(not checkBox.variable.get())
+	try:
+		checkBox = checkBoxShortcuts[ch]
+		checkBox.variable.set(not checkBox.variable.get())
+		setCreateBtnState()
+	except KeyError:
+		pass
 
 def keyPressFn(kpEvent):
 	try:
 		fn = {'a' 		:	'allFn()',
-			  'c' 		:	'createTextFn()',
+			  'c'		:	'checkBoxFn(kpEvent.keysym)',
 			  'e'		:	'checkBoxFn(kpEvent.keysym)',
-			  'f'		:	'checkBoxFn(kpEvent.keysym)',
+			  'f'		:	'selectFileFn()',
 			  'g'		:	'checkBoxFn(kpEvent.keysym)',
-			  'i'		:	'checkBoxFn(kpEvent.keysym)',
 			  'l'		:	'checkBoxFn(kpEvent.keysym)',
 			  'm'		:	'checkBoxFn(kpEvent.keysym)',
 			  'h'		:	'helpFn()',
 			  'n' 		:	'noneFn()',
+			  'o'		:	'checkBoxFn(kpEvent.keysym)',
 			  'p'		:	'checkBoxFn(kpEvent.keysym)',
 			  'q' 		:	'root.quit()',
 			  'r'		:	'checkBoxFn(kpEvent.keysym)',
-			  's' 		:	'selectFileFn()',
-			  't'		:	'checkBoxFn(kpEvent.keysym)',
+			  's'		:	'checkBoxFn(kpEvent.keysym)',
+			  't' 		:	'createTextFn()',
 			  'v'		:	'checkBoxFn(kpEvent.keysym)',
 			  'w'		:	'checkBoxFn(kpEvent.keysym)',
 			  'x'		:	'checkBoxFn(kpEvent.keysym)',
@@ -116,7 +120,7 @@ def keyPressFn(kpEvent):
 			 [kpEvent.keysym]
 		eval(fn)
 	except KeyError:				# the 'default' case
-		return
+		pass
 
 root = tkinter.Tk()
 root.bind_all('<KeyPress>', keyPressFn)
@@ -150,10 +154,10 @@ fileNameEntry.grid(row = 0, column = 1, sticky = 'w')
 fileFrame.grid(row = 1, column = 0, sticky = 'w', columnspan = 2)
 
 btnsFrame = ttk.Frame(rootFrame, padding = '8 12 12 12')
-selectFileBtn = ttk.Button(btnsFrame, text = 'Select File', command = selectFileFn, underline = 0)
+selectFileBtn = ttk.Button(btnsFrame, text = 'Select File', command = selectFileFn, underline = 7)
 selectFileBtn.grid(row = 0, column = 0, sticky = 'w', padx = 6)
 createTextBtn = \
-	ttk.Button(btnsFrame, text = 'Create Text', command = createTextFn, state = 'disabled', underline = 0)
+	ttk.Button(btnsFrame, text = 'Create Text', command = createTextFn, state = 'disabled', underline = 7)
 createTextBtn.grid(row = 0, column = 1, sticky = 'w', padx = 12)
 btnsFrame.grid(row = 2, column = 0, padx = 12, sticky = 'ew')
 
@@ -162,6 +166,6 @@ helpBtn = ttk.Button(helpBtnFrame, text = 'Help', command = helpFn, underline = 
 helpBtn.grid(row = 0, column = 0, sticky = 'e')
 helpBtnFrame.grid(row = 2, column = 1, padx = 12, sticky = 'ew')
 
-root.title('Motif 2 Text        v' + VERSION)
+root.title('Motif 2 Text        v%s(%s)' % (VERSION, PF_VERSION))
 root.resizable(False, False)
 root.mainloop()
