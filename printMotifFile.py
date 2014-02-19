@@ -271,7 +271,7 @@ def doBlock(blockSpec):
 	if blockSpec.printFn != None:
 		blockSpec.printFn(blockSpec.name)
 
-def processFile(fileName, selectedItems):
+def printMotifFile(fileName, selectedItems):
 	# globals
 	global catalog, fileVersion, inputStream, mixingVoices, \
 		   sampleVoices, voices, voiceBlockRead, waveformTypes
@@ -306,7 +306,7 @@ def processFile(fileName, selectedItems):
 		entryId, offset = struct.unpack('> 4s I', entry)
 		catalog[entryId] = offset
 
-	print('%s\n(Motif file format version %s)\n' % (os.path.basename(fileName), fileVersionStr))
+	print('%s\n' % os.path.basename(fileName))
 	if len(selectedItems) == 0:					# print everything
 		for blockSpec in blockSpecs.values():
 			doBlock(blockSpec)
@@ -319,3 +319,4 @@ def processFile(fileName, selectedItems):
 				print('unknown data type: %s\n' % blockAbbrev)
 	
 	inputStream.close()
+	print('\n(Motif file v%s, printMotifFile v%s)' % (fileVersionStr, VERSION))

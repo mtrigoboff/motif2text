@@ -9,7 +9,7 @@ import tkinter
 from tkinter import BooleanVar, StringVar, ttk
 from tkinter.filedialog import askopenfilename
 
-from processFile import blockSpecs, processFile, VERSION as PF_VERSION
+from printMotifFile import blockSpecs, printMotifFile, VERSION as PMF_VERSION
 
 class CheckBox:
 	def __init__(self, label, underlineIndex, abbrev, frame):
@@ -27,6 +27,16 @@ checkBoxShortcuts = {}
 selectedItems =		[]
 motifFilePath =		''
 fileName =			''
+
+def launchFile(filePath):			# launch file with default app for that file type
+	# need to enclose filePath in "..." so that space chars don't break path
+	filePath = '\"' + filePath + '\"'
+	# open file with default app
+	if sys.platform == 'win32' or sys.platform == 'win64':		# windows
+		os.startfile(filePath)
+	else:														# mac, linux
+		os.system("open " + filePath)
+	#os.system("notepad.exe \"" + textFilePath + "\"")			#open .txt file with notepad
 
 def setCreateBtnState():
 	if len(motifFilePath) == 0:
@@ -71,26 +81,20 @@ def createTextFn():
 	try:
 		textFile = open(textFilePath, 'w')
 		sys.stdout = textFile
-		processFile(motifFilePath, selectedItems)
+		printMotifFile(motifFilePath, selectedItems)
 		textFile.close()
-		textFilePath = "\"" + textFilePath + "\""
-			# need to enclose textFilePath in "..." so that space chars don't break path
-		# open .txt file with default app
-		if sys.platform == 'win32' or sys.platform == 'win64':		# windows
-			os.startfile(textFilePath)
-			#os.system("notepad.exe \"" + textFilePath + "\"")			#open .txt file with notepad
-		else:														# mac, linux
-			os.system("open " + textFilePath)
+		launchFile(textFilePath)
 	except Exception as _:
 		fileNameEntryVar.set('problem reading \'%s\'' % fileName)
 		motifFilePath = ''
 		setCreateBtnState()
-		textFile.close()
+		if not textFile.closed:
+			textFile.close()
 		os.remove(textFilePath)
 	sys.stdout = realStdOut
 
 def helpFn():
-	os.startfile('motif2textHelp.pdf')						# open .pdf file with default app
+	launchFile('motif2textHelp.pdf')
 
 def checkBoxFn(ch):
 	try:
@@ -171,6 +175,6 @@ helpBtn = ttk.Button(helpBtnFrame, text = 'Help', command = helpFn, underline = 
 helpBtn.grid(row = 0, column = 0, sticky = 'e')
 helpBtnFrame.grid(row = 2, column = 1, padx = 12, sticky = 'ew')
 
-root.title('motif2text    v%s(%s)' % (VERSION, PF_VERSION))
+root.title('motif2text    v%s(%s)' % (VERSION, PMF_VERSION))
 root.resizable(False, False)
 root.mainloop()

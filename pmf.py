@@ -1,5 +1,5 @@
 import sys
-from processFile import blockSpecs, processFile, VERSION
+from printMotifFile import blockSpecs, printMotifFile, VERSION as PMF_VERSION
 
 help1Str = \
 '''
@@ -32,7 +32,7 @@ the Free Software Foundation, either version 3 of the License, or
 if len(sys.argv) == 1:
 	# print help information
 	print('pmf (Print Motif File)')
-	print('version %s' % VERSION)
+	print('version %s' % PMF_VERSION)
 	print('by Michael Trigoboff\nmtrigoboff@comcast.net\nhttp://spot.pcc.edu/~mtrigobo')
 	print(help1Str)
 	for blockFlag, blockSpec in blockSpecs.items():
@@ -45,6 +45,6 @@ elif len(sys.argv) > 2:
 else:
 	itemFlags = ()
 try:
-	processFile(sys.argv[-1], itemFlags)
+	printMotifFile(sys.argv[-1], itemFlags)
 except Exception as e:
 	print('file problem (%s)' % e, file = sys.stderr)
