@@ -22,9 +22,9 @@ class CheckBox:
 
 # global variables
 VERSION =			'1.05'
+SETTINGS_FILENAME = 'motif2text.settings'
 checkBoxes =		[]
 checkBoxShortcuts = {}
-selectedItems =		[]
 motifFilePath =		''
 fileName =			''
 
@@ -131,50 +131,77 @@ def keyPressFn(kpEvent):
 	except KeyError:				# the 'default' case
 		pass
 
-root = tkinter.Tk()
-root.bind_all('<KeyPress>', keyPressFn)
+def setupGUI():
+	global createTextBtn, fileNameEntryVar
 
-rootFrame = ttk.Frame(root, padding = '12 12 12 12')
-rootFrame.pack()
+	root.bind_all('<KeyPress>', keyPressFn)
+	rootFrame = ttk.Frame(root, padding = '12 12 12 12')
+	rootFrame.pack()
 
-selectItemsFrame = ttk.LabelFrame(rootFrame, text = 'Select Items', padding = '6 0 6 6')
-checkBoxFrame = ttk.Frame(selectItemsFrame, padding = '6 6 6 6')
-i = 0
-for abbrev, blockSpec in blockSpecs.items():
-	checkBox = CheckBox(blockSpec.name, blockSpec.underline, abbrev, checkBoxFrame)
-	checkBoxes.append(checkBox)
-	checkBox.checkBtn.grid(row = int(i % 6), column = int(i / 6), sticky = "w", padx = 6)
-	i += 1
-checkBoxFrame.pack(side = 'left')
-checkBoxBtnsFrame = ttk.Frame(selectItemsFrame, padding = '6 6 6 6')
-allBtn = ttk.Button(checkBoxBtnsFrame, text = 'All', command = allFn, underline = 0)
-allBtn.grid(row = 0, column = 2, padx = 6, pady = 12)
-noneBtn = ttk.Button(checkBoxBtnsFrame, text = 'None', command = noneFn, underline = 0)
-noneBtn.grid(row = 1, column = 2, padx = 6, pady = 12)
-checkBoxBtnsFrame.pack(side = 'left')
-selectItemsFrame.grid(row = 0, column = 0, columnspan = 2)
+	selectItemsFrame = ttk.LabelFrame(rootFrame, text = 'Select Items', padding = '6 0 6 6')
+	checkBoxFrame = ttk.Frame(selectItemsFrame, padding = '6 6 6 6')
+	i = 0
+	for abbrev, blockSpec in blockSpecs.items():
+		checkBox = CheckBox(blockSpec.name, blockSpec.underline, abbrev, checkBoxFrame)
+		checkBoxes.append(checkBox)
+		checkBox.checkBtn.grid(row = int(i % 6), column = int(i / 6), sticky = "w", padx = 6)
+		i += 1
+	checkBoxFrame.pack(side = 'left')
+	checkBoxBtnsFrame = ttk.Frame(selectItemsFrame, padding = '6 6 6 6')
+	allBtn = ttk.Button(checkBoxBtnsFrame, text = 'All', command = allFn, underline = 0)
+	allBtn.grid(row = 0, column = 2, padx = 6, pady = 12)
+	noneBtn = ttk.Button(checkBoxBtnsFrame, text = 'None', command = noneFn, underline = 0)
+	noneBtn.grid(row = 1, column = 2, padx = 6, pady = 12)
+	checkBoxBtnsFrame.pack(side = 'left')
+	selectItemsFrame.grid(row = 0, column = 0, columnspan = 2)
+	
+	fileFrame = ttk.Frame(rootFrame, padding = '16 20 12 12')
+	fileLabel = ttk.Label(fileFrame, text = 'File:  ')
+	fileLabel.grid(row = 0, column = 0, sticky = 'w')
+	fileNameEntryVar = StringVar()
+	fileNameEntry = ttk.Entry(fileFrame, textvariable = fileNameEntryVar, width = 48, state='disabled')
+	fileNameEntry.grid(row = 0, column = 1, sticky = 'w')
+	fileFrame.grid(row = 1, column = 0, sticky = 'w', columnspan = 2)
+	
+	btnsFrame = ttk.Frame(rootFrame, padding = '8 12 12 12')
+	selectFileBtn = ttk.Button(btnsFrame, text = 'Select File', command = selectFileFn, underline = 7)
+	selectFileBtn.grid(row = 0, column = 0, sticky = 'w', padx = 6)
+	createTextBtn = \
+		ttk.Button(btnsFrame, text = 'Create Text', command = createTextFn, state = 'disabled', underline = 7)
+	createTextBtn.grid(row = 0, column = 1, sticky = 'w', padx = 12)
+	btnsFrame.grid(row = 2, column = 0, padx = 12, sticky = 'ew')
+	
+	helpBtnFrame = ttk.Frame(rootFrame, padding = '12 12 12 12')
+	helpBtn = ttk.Button(helpBtnFrame, text = 'Help', command = helpFn, underline = 0)
+	helpBtn.grid(row = 0, column = 0, sticky = 'e')
+	helpBtnFrame.grid(row = 2, column = 1, padx = 12, sticky = 'ew')
 
-fileFrame = ttk.Frame(rootFrame, padding = '16 20 12 12')
-fileLabel = ttk.Label(fileFrame, text = 'File:  ')
-fileLabel.grid(row = 0, column = 0, sticky = 'w')
-fileNameEntryVar = StringVar()
-fileNameEntry = ttk.Entry(fileFrame, textvariable = fileNameEntryVar, width = 48, state='disabled')
-fileNameEntry.grid(row = 0, column = 1, sticky = 'w')
-fileFrame.grid(row = 1, column = 0, sticky = 'w', columnspan = 2)
+def run():
+	global root					# required by 'Escape' and 'q' keyboard shortcuts
+	
+	settingsFilePath = os.path.join(os.path.dirname(os.path.realpath(__file__)), SETTINGS_FILENAME)
+	
+	# get window position if it was previously saved
+	if os.path.isfile(settingsFilePath):
+		settingsFile = open(settingsFilePath, "r")
+		line = settingsFile.readline()
+		settingsFile.close()
+		windowPosn = [int(strg) for strg in line.split()]
+	else:
+		windowPosn = (40, 40)
+	
+	root = tkinter.Tk()											# open window
+	root.geometry('+%d+%d' % (windowPosn[0], windowPosn[1]))	# position window (x, y)
+	
+	setupGUI()
+	root.title('motif2text    v%s(%s)' % (VERSION, PMF_VERSION))
+	root.resizable(False, False)
+	root.mainloop()
+	
+	# save window position after window closes for next time the app runs
+	settingsFile = open(settingsFilePath, "w")
+	print('%d %d\n' % (root.winfo_x(), root.winfo_y()), file = settingsFile)
+	settingsFile.close()
 
-btnsFrame = ttk.Frame(rootFrame, padding = '8 12 12 12')
-selectFileBtn = ttk.Button(btnsFrame, text = 'Select File', command = selectFileFn, underline = 7)
-selectFileBtn.grid(row = 0, column = 0, sticky = 'w', padx = 6)
-createTextBtn = \
-	ttk.Button(btnsFrame, text = 'Create Text', command = createTextFn, state = 'disabled', underline = 7)
-createTextBtn.grid(row = 0, column = 1, sticky = 'w', padx = 12)
-btnsFrame.grid(row = 2, column = 0, padx = 12, sticky = 'ew')
-
-helpBtnFrame = ttk.Frame(rootFrame, padding = '12 12 12 12')
-helpBtn = ttk.Button(helpBtnFrame, text = 'Help', command = helpFn, underline = 0)
-helpBtn.grid(row = 0, column = 0, sticky = 'e')
-helpBtnFrame.grid(row = 2, column = 1, padx = 12, sticky = 'ew')
-
-root.title('motif2text    v%s(%s)' % (VERSION, PMF_VERSION))
-root.resizable(False, False)
-root.mainloop()
+if __name__ == '__main__':
+	run()

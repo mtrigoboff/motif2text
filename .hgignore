@@ -6,6 +6,6 @@ build/*
 Thumbs.db
 test/*
 *.pdf
-
+motif2text.settings
 syntax: regexp
 ^cmdLineArgs\.txt$
