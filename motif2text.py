@@ -64,8 +64,13 @@ def noneFn():
 
 def selectFileFn():
 	global motifFileDir, motifFileName
-	motifFilePath = os.path.realpath(askopenfilename(initialdir = motifFileDir))
-		# use realpath so that path separators are platform-specific -- needed for Windows '\'
+	
+	motifFilePath = askopenfilename(initialdir = motifFileDir)
+	if motifFilePath == '':								# user hit Cancel
+		return
+	# can't use realpath until here because it turns '' into something else, disabling Cancel
+	motifFilePath = os.path.realpath(motifFilePath)
+		# use realpath so that path separators are platform-specific, e.g. Windows '\'
 	motifFileDir = os.path.dirname(motifFilePath)
 	motifFileName = os.path.basename(motifFilePath)
 	fileNameEntryVar.set(motifFileName)
@@ -185,6 +190,7 @@ def setupGUI(checkBoxStates):
 	setCreateBtnState()
 
 def getAppDirectory():									# returns directory app is in
+	# see http://cx-freeze.readthedocs.org/en/latest/faq.html
 	if getattr(sys, 'frozen', False):					# running in version created by cx_Freeze
 		appDir = os.path.dirname(sys.executable)
 	else:												# running in normal Python mode
@@ -206,10 +212,8 @@ def run():
 	config = configparser.ConfigParser()
 	config.optionxform = str		# preserve case in key names
 
-	stateFilePath = \
-		os.path.join(getAppDirectory(), STATE_FILE_NAME)
-
 	# set up app state
+	stateFilePath = os.path.join(getAppDirectory(), STATE_FILE_NAME)
 	if os.path.isfile(stateFilePath):
 		config.read(stateFilePath)
 		stateSection = config[STATE_SECTION_NAME]
