@@ -4,29 +4,30 @@
 @contact: http://spot.pcc.edu/~mtrigobo
 '''
 
-import os.path, sys
-import tkinter
+import configparser
+import os.path
+import sys
 from tkinter import BooleanVar, StringVar, ttk
+import tkinter
 from tkinter.filedialog import askopenfilename
 
 from printMotifFile import blockSpecs, printMotifFile, VERSION as PMF_VERSION
 
+
 class CheckBox:
-	def __init__(self, label, underlineIndex, abbrev, frame):
+	def __init__(self, label, underlineIndex, abbrev, frame, state):
 		self.label =		label
 		self.abbrev =		abbrev
 		self.variable =		BooleanVar()
 		self.checkBtn = 	ttk.Checkbutton(frame, text = label, variable = self.variable,
 											command = setCreateBtnState, underline = underlineIndex)
 		checkBoxShortcuts[label[underlineIndex].lower()] = self
+		self.variable.set(state)
 
 # global variables
-VERSION =			'1.05'
-SETTINGS_FILENAME = 'motif2text.settings'
-checkBoxes =		[]
-checkBoxShortcuts = {}
-motifFilePath =		''
-fileName =			''
+VERSION =				'1.05'
+checkBoxes =			[]
+checkBoxShortcuts = 	{}
 
 def launchFile(filePath):			# launch file with default app for that file type
 	# need to enclose filePath in "..." so that space chars don't break path
@@ -39,7 +40,7 @@ def launchFile(filePath):			# launch file with default app for that file type
 	#os.system("notepad.exe \"" + textFilePath + "\"")			#open .txt file with notepad
 
 def setCreateBtnState():
-	if len(motifFilePath) == 0:
+	if len(motifFileDir) == 0:
 		createTextBtn['state'] = 'disabled'
 	else:
 		atLeastOneChecked = False
@@ -62,14 +63,16 @@ def noneFn():
 	setCreateBtnState()		
 
 def selectFileFn():
-	global motifFilePath, fileName
-	motifFilePath = askopenfilename()
-	fileName = os.path.basename(motifFilePath)
-	fileNameEntryVar.set(fileName)
+	global motifFileDir, motifFileName
+	motifFilePath = os.path.realpath(askopenfilename())
+		# use realpath so that path separators are platform-specific -- needed for Windows '\'
+	motifFileDir = os.path.dirname(motifFilePath)
+	motifFileName = os.path.basename(motifFilePath)
+	fileNameEntryVar.set(motifFileName)
 	setCreateBtnState()
 
 def createTextFn():
-	global motifFilePath
+	global motifFileDir
 	selectedItems = []
 	for checkBox in checkBoxes:
 		if checkBox.variable.get():
@@ -77,6 +80,7 @@ def createTextFn():
 	if len(selectedItems) == 0:
 		return
 	realStdOut = sys.stdout
+	motifFilePath = os.path.join(motifFileDir, motifFileName)
 	textFilePath = motifFilePath + '.txt'
 	try:
 		textFile = open(textFilePath, 'w')
@@ -85,8 +89,8 @@ def createTextFn():
 		textFile.close()
 		launchFile(textFilePath)
 	except Exception as _:
-		fileNameEntryVar.set('problem reading \'%s\'' % fileName)
-		motifFilePath = ''
+		fileNameEntryVar.set('problem reading \'%s\'' % motifFileName)
+		motifFileDir = ''
 		setCreateBtnState()
 		if not textFile.closed:
 			textFile.close()
@@ -96,7 +100,7 @@ def createTextFn():
 def helpFn():
 	launchFile('motif2textHelp.pdf')
 
-def checkBoxFn(ch):
+def checkBoxKeyboardShortcutFn(ch):
 	try:
 		checkBox = checkBoxShortcuts[ch]
 		checkBox.variable.set(not checkBox.variable.get())
@@ -107,23 +111,23 @@ def checkBoxFn(ch):
 def keyPressFn(kpEvent):
 	try:
 		fn = {'a' 		:	'allFn()',
-			  'c'		:	'checkBoxFn(kpEvent.keysym)',
-			  'e'		:	'checkBoxFn(kpEvent.keysym)',
+			  'c'		:	'checkBoxKeyboardShortcutFn(kpEvent.keysym)',
+			  'e'		:	'checkBoxKeyboardShortcutFn(kpEvent.keysym)',
 			  'f'		:	'selectFileFn()',
-			  'g'		:	'checkBoxFn(kpEvent.keysym)',
-			  'l'		:	'checkBoxFn(kpEvent.keysym)',
-			  'm'		:	'checkBoxFn(kpEvent.keysym)',
+			  'g'		:	'checkBoxKeyboardShortcutFn(kpEvent.keysym)',
+			  'l'		:	'checkBoxKeyboardShortcutFn(kpEvent.keysym)',
+			  'm'		:	'checkBoxKeyboardShortcutFn(kpEvent.keysym)',
 			  'h'		:	'helpFn()',
 			  'n' 		:	'noneFn()',
-			  'o'		:	'checkBoxFn(kpEvent.keysym)',
-			  'p'		:	'checkBoxFn(kpEvent.keysym)',
+			  'o'		:	'checkBoxKeyboardShortcutFn(kpEvent.keysym)',
+			  'p'		:	'checkBoxKeyboardShortcutFn(kpEvent.keysym)',
 			  'q' 		:	'root.quit()',
-			  'r'		:	'checkBoxFn(kpEvent.keysym)',
-			  's'		:	'checkBoxFn(kpEvent.keysym)',
+			  'r'		:	'checkBoxKeyboardShortcutFn(kpEvent.keysym)',
+			  's'		:	'checkBoxKeyboardShortcutFn(kpEvent.keysym)',
 			  't' 		:	'createTextFn()',
-			  'v'		:	'checkBoxFn(kpEvent.keysym)',
-			  'w'		:	'checkBoxFn(kpEvent.keysym)',
-			  'x'		:	'checkBoxFn(kpEvent.keysym)',
+			  'v'		:	'checkBoxKeyboardShortcutFn(kpEvent.keysym)',
+			  'w'		:	'checkBoxKeyboardShortcutFn(kpEvent.keysym)',
+			  'x'		:	'checkBoxKeyboardShortcutFn(kpEvent.keysym)',
 			  'F1'		:	'helpFn()',
 			  'Escape'	:	'root.quit()' } \
 			 [kpEvent.keysym]
@@ -131,7 +135,7 @@ def keyPressFn(kpEvent):
 	except KeyError:				# the 'default' case
 		pass
 
-def setupGUI():
+def setupGUI(checkBoxStates):
 	global createTextBtn, fileNameEntryVar
 
 	root.bind_all('<KeyPress>', keyPressFn)
@@ -141,8 +145,8 @@ def setupGUI():
 	selectItemsFrame = ttk.LabelFrame(rootFrame, text = 'Select Items', padding = '6 0 6 6')
 	checkBoxFrame = ttk.Frame(selectItemsFrame, padding = '6 6 6 6')
 	i = 0
-	for abbrev, blockSpec in blockSpecs.items():
-		checkBox = CheckBox(blockSpec.name, blockSpec.underline, abbrev, checkBoxFrame)
+	for bsItem, cbState in zip(blockSpecs.items(), checkBoxStates):
+		checkBox = CheckBox(bsItem[1].name, bsItem[1].underline, bsItem[0], checkBoxFrame, cbState)
 		checkBoxes.append(checkBox)
 		checkBox.checkBtn.grid(row = int(i % 6), column = int(i / 6), sticky = "w", padx = 6)
 		i += 1
@@ -160,6 +164,7 @@ def setupGUI():
 	fileLabel.grid(row = 0, column = 0, sticky = 'w')
 	fileNameEntryVar = StringVar()
 	fileNameEntry = ttk.Entry(fileFrame, textvariable = fileNameEntryVar, width = 48, state='disabled')
+	fileNameEntryVar.set(motifFileName)
 	fileNameEntry.grid(row = 0, column = 1, sticky = 'w')
 	fileFrame.grid(row = 1, column = 0, sticky = 'w', columnspan = 2)
 	
@@ -175,33 +180,66 @@ def setupGUI():
 	helpBtn = ttk.Button(helpBtnFrame, text = 'Help', command = helpFn, underline = 0)
 	helpBtn.grid(row = 0, column = 0, sticky = 'e')
 	helpBtnFrame.grid(row = 2, column = 1, padx = 12, sticky = 'ew')
+	
+	setCreateBtnState()
 
 def run():
 	global root					# required by 'Escape' and 'q' keyboard shortcuts
+	global motifFileDir, motifFileName
 	
-	settingsFilePath = os.path.join(os.path.dirname(os.path.realpath(__file__)), SETTINGS_FILENAME)
+	STATE_FILE_NAME =		'motif2text.ini'
+	STATE_SECTION_NAME =	'APP_STATE'
+	WN_POSN_KEY = 			'WindowPosition'
+	MOTIF_FILE_DIR_KEY =	'MotifFileDir'
+	MOTIF_FILE_NAME_KEY =	'MotifFileName'
+	CHECK_BOX_STATES = 		'CheckBoxStates'
 	
-	# get window position if it was previously saved
-	if os.path.isfile(settingsFilePath):
-		settingsFile = open(settingsFilePath, "r")
-		line = settingsFile.readline()
-		settingsFile.close()
-		windowPosn = [int(strg) for strg in line.split()]
+	config = configparser.ConfigParser()
+	config.optionxform = str		# preserve case in key names
+
+	stateFilePath = \
+		os.path.join(
+			os.path.dirname(os.path.realpath(__file__)),		# path to application directory
+			STATE_FILE_NAME)
+
+	# set up app state
+	if os.path.isfile(stateFilePath):
+		config.read(stateFilePath)
+		stateSection = config[STATE_SECTION_NAME]
+		windowPosn = \
+			[int(coord) for coord in stateSection[WN_POSN_KEY].replace(' ', '').split(',')]
+		motifFileDir = stateSection[MOTIF_FILE_DIR_KEY]
+		motifFileName = stateSection[MOTIF_FILE_NAME_KEY]
+		if not os.path.isdir(motifFileDir):
+			motifFileDir = ''
+			motifFileName = ''
+		elif not os.path.isfile(os.path.join(motifFileDir, motifFileName)):
+			motifFileName = ''
+		strToBool = lambda strg : strg == 'True'
+		checkBoxStates = \
+			[strToBool(val) for val in stateSection[CHECK_BOX_STATES].replace(' ', '').split(',')]
 	else:
 		windowPosn = (40, 40)
+		motifFileDir = ''
+		motifFileName = ''
+		checkBoxStates = [False] * len(blockSpecs.items())
 	
 	root = tkinter.Tk()											# open window
 	root.geometry('+%d+%d' % (windowPosn[0], windowPosn[1]))	# position window (x, y)
 	
-	setupGUI()
+	setupGUI(checkBoxStates)
+
 	root.title('motif2text    v%s(%s)' % (VERSION, PMF_VERSION))
 	root.resizable(False, False)
 	root.mainloop()
 	
-	# save window position after window closes for next time the app runs
-	settingsFile = open(settingsFilePath, "w")
-	print('%d %d\n' % (root.winfo_x(), root.winfo_y()), file = settingsFile)
-	settingsFile.close()
+	config[STATE_SECTION_NAME] = { \
+		WN_POSN_KEY			:	'%d, %d' % (root.winfo_x(), root.winfo_y()),
+		MOTIF_FILE_DIR_KEY	:	motifFileDir,
+		MOTIF_FILE_NAME_KEY	:	motifFileName,
+		CHECK_BOX_STATES	:	str([bool(cb.variable.get()) for cb in checkBoxes]).strip('[]')}
+	with open(stateFilePath, 'w') as configFile:
+		config.write(configFile)
 
 if __name__ == '__main__':
 	run()
