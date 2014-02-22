@@ -23,12 +23,10 @@ base = None
 if sys.platform == 'win32':
     base = 'Win32GUI'
 
-executables = [
-    Executable('motif2text.py', base=base)
-]
+execs = [Executable(script = 'motif2text.py', base = base)]
 
-setup(name='simple_Tkinter',
-      version='0.1',
-      description='Sample cx_Freeze Tkinter script',
-      executables=executables
+setup(name =		'motif2text',
+      version =		'1.0',
+      description =	'',
+      executables =	execs
       )

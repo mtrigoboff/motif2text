@@ -64,7 +64,7 @@ def noneFn():
 
 def selectFileFn():
 	global motifFileDir, motifFileName
-	motifFilePath = os.path.realpath(askopenfilename())
+	motifFilePath = os.path.realpath(askopenfilename(initialdir = motifFileDir))
 		# use realpath so that path separators are platform-specific -- needed for Windows '\'
 	motifFileDir = os.path.dirname(motifFilePath)
 	motifFileName = os.path.basename(motifFilePath)
@@ -72,7 +72,7 @@ def selectFileFn():
 	setCreateBtnState()
 
 def createTextFn():
-	global motifFileDir
+	global motifFileDir, motifFileName
 	selectedItems = []
 	for checkBox in checkBoxes:
 		if checkBox.variable.get():
@@ -91,6 +91,7 @@ def createTextFn():
 	except Exception as _:
 		fileNameEntryVar.set('problem reading \'%s\'' % motifFileName)
 		motifFileDir = ''
+		motifFileName = ''
 		setCreateBtnState()
 		if not textFile.closed:
 			textFile.close()
@@ -183,6 +184,14 @@ def setupGUI(checkBoxStates):
 	
 	setCreateBtnState()
 
+def getAppDirectory():									# returns directory app is in
+	if getattr(sys, 'frozen', False):					# running in version created by cx_Freeze
+		appDir = os.path.dirname(sys.executable)
+	else:												# running in normal Python mode
+		appDir = os.path.dirname(__file__)
+	return os.path.realpath(appDir)
+		# realpath to get os-specific path separators, e.g. '\' for Windows
+
 def run():
 	global root					# required by 'Escape' and 'q' keyboard shortcuts
 	global motifFileDir, motifFileName
@@ -198,9 +207,7 @@ def run():
 	config.optionxform = str		# preserve case in key names
 
 	stateFilePath = \
-		os.path.join(
-			os.path.dirname(os.path.realpath(__file__)),		# path to application directory
-			STATE_FILE_NAME)
+		os.path.join(getAppDirectory(), STATE_FILE_NAME)
 
 	# set up app state
 	if os.path.isfile(stateFilePath):
