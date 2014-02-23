@@ -7,5 +7,6 @@ Thumbs.db
 test/*
 *.pdf
 motif2text.settings
+motif2text.ini
 syntax: regexp
 ^cmdLineArgs\.txt$

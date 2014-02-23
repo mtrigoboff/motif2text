@@ -25,9 +25,17 @@ class CheckBox:
 		self.variable.set(state)
 
 # global variables
-VERSION =				'1.05'
+VERSION =				'1.1'
 checkBoxes =			[]
 checkBoxShortcuts = 	{}
+
+# global constants for app state .ini file
+STATE_FILE_NAME =		'motif2text.ini'
+STATE_SECTION_NAME =	'APP_STATE'
+WN_POSN_KEY = 			'WindowPosition'
+MOTIF_FILE_DIR_KEY =	'MotifFileDir'
+MOTIF_FILE_NAME_KEY =	'MotifFileName'
+CHECK_BOX_STATES = 		'CheckBoxStates'
 
 def launchFile(filePath):			# launch file with default app for that file type
 	# need to enclose filePath in "..." so that space chars don't break path
@@ -127,7 +135,7 @@ def keyPressFn(kpEvent):
 			  'n' 		:	'noneFn()',
 			  'o'		:	'checkBoxKeyboardShortcutFn(kpEvent.keysym)',
 			  'p'		:	'checkBoxKeyboardShortcutFn(kpEvent.keysym)',
-			  'q' 		:	'root.quit()',
+			  'q' 		:	'windowCloseRequested()',
 			  'r'		:	'checkBoxKeyboardShortcutFn(kpEvent.keysym)',
 			  's'		:	'checkBoxKeyboardShortcutFn(kpEvent.keysym)',
 			  't' 		:	'createTextFn()',
@@ -135,7 +143,7 @@ def keyPressFn(kpEvent):
 			  'w'		:	'checkBoxKeyboardShortcutFn(kpEvent.keysym)',
 			  'x'		:	'checkBoxKeyboardShortcutFn(kpEvent.keysym)',
 			  'F1'		:	'helpFn()',
-			  'Escape'	:	'root.quit()' } \
+			  'Escape'	:	'windowCloseRequested()' } \
 			 [kpEvent.keysym]
 		eval(fn)
 	except KeyError:				# the 'default' case
@@ -198,16 +206,20 @@ def getAppDirectory():									# returns directory app is in
 	return os.path.realpath(appDir)
 		# realpath to get os-specific path separators, e.g. '\' for Windows
 
+def windowCloseRequested():
+	config[STATE_SECTION_NAME] = { \
+		WN_POSN_KEY			:	'%d, %d' % (root.winfo_x(), root.winfo_y()),
+		MOTIF_FILE_DIR_KEY	:	motifFileDir,
+		MOTIF_FILE_NAME_KEY	:	motifFileName,
+		CHECK_BOX_STATES	:	str([bool(cb.variable.get()) for cb in checkBoxes]).strip('[]')}
+	with open(stateFilePath, 'w') as configFile:
+		config.write(configFile)
+	root.quit()
+
 def run():
 	global root					# required by 'Escape' and 'q' keyboard shortcuts
+	global config, stateFilePath
 	global motifFileDir, motifFileName
-	
-	STATE_FILE_NAME =		'motif2text.ini'
-	STATE_SECTION_NAME =	'APP_STATE'
-	WN_POSN_KEY = 			'WindowPosition'
-	MOTIF_FILE_DIR_KEY =	'MotifFileDir'
-	MOTIF_FILE_NAME_KEY =	'MotifFileName'
-	CHECK_BOX_STATES = 		'CheckBoxStates'
 	
 	config = configparser.ConfigParser()
 	config.optionxform = str		# preserve case in key names
@@ -237,20 +249,13 @@ def run():
 	
 	root = tkinter.Tk()											# open window
 	root.geometry('+%d+%d' % (windowPosn[0], windowPosn[1]))	# position window (x, y)
+	root.protocol('WM_DELETE_WINDOW', windowCloseRequested)
 	
 	setupGUI(checkBoxStates)
 
 	root.title('motif2text    v%s(%s)' % (VERSION, PMF_VERSION))
 	root.resizable(False, False)
 	root.mainloop()
-	
-	config[STATE_SECTION_NAME] = { \
-		WN_POSN_KEY			:	'%d, %d' % (root.winfo_x(), root.winfo_y()),
-		MOTIF_FILE_DIR_KEY	:	motifFileDir,
-		MOTIF_FILE_NAME_KEY	:	motifFileName,
-		CHECK_BOX_STATES	:	str([bool(cb.variable.get()) for cb in checkBoxes]).strip('[]')}
-	with open(stateFilePath, 'w') as configFile:
-		config.write(configFile)
 
 if __name__ == '__main__':
 	run()
