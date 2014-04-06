@@ -25,7 +25,7 @@ class CheckBox:
 		self.variable.set(state)
 
 # global variables
-VERSION =				'1.1'
+VERSION =				'1.2'
 checkBoxes =			[]
 checkBoxShortcuts = 	{}
 
@@ -112,7 +112,17 @@ def createTextFn():
 	sys.stdout = realStdOut
 
 def helpFn():
-	launchFile('motif2textHelp.pdf')
+	helpFileName = 'motif2textHelp.pdf'
+	if os.name == 'mac':
+		# this section adapted from code written by Vikas Sharma
+		if getattr(sys, 'frozen', False):			# application is frozen
+			datadir = os.path.join(os.path.dirname(sys.executable), '..', 'Resources')
+		else:										# application is not frozen
+			datadir = os.path.join(os.path.dirname(__file__), '..', 'Resources')
+		helpFilePath = os.path.join(datadir, helpFileName)
+	else:										# Windows, Linux, etc
+		helpFilePath = helpFileName
+	launchFile(helpFilePath)
 
 def checkBoxKeyboardShortcutFn(ch):
 	try:
