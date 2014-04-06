@@ -69,10 +69,11 @@ class MasterTargetType:
 	MST_VOICE, MST_PERFORMANCE, MST_PATTERN, MST_SONG = range(4)
 
 def printMaster(entryNumber, entryName, data):
-	if fileVersion[0] == 1 and fileVersion[1] == 0 and fileVersion[2] < 2:
-		dataId, targetType, targetBank, target = struct.unpack('> 4s 32x B x B B 328x', data)
+	if fileVersionPreXF():
+		masterFormatStr = '> 4s 32x B x B B 328x'
 	else:
-		dataId, targetType, targetBank, target = struct.unpack('> 4s 32x B x B B 520x', data)
+		masterFormatStr = '> 4s 32x B x B B 520x'
+	dataId, targetType, targetBank, target = struct.unpack(masterFormatStr, data)
 	assert dataId == BLOCK_DATA_ID, BLOCK_DATA_ID
 	targetBank &= 0x0F		# guess about keeping bank in range
 	print('%s: %-20s ' % (bankSectNumStrFromEntryNum(entryNumber), entryName), end='')
@@ -151,17 +152,18 @@ def processWaveform(wfNumber, wfName, wfType):
 		wfType.duplicates[wfName] = [wfNumber]
 	
 def doWaveform(entryNumber, entryName, data):					# entryNumber range is [0 .. 2047]
-	categorized = True
 	waveformName = entryName.split(':')[-1]
 	if fileVersionPreXF():
-		processWaveform(entryNumber, waveformName, waveformTypes[0])
+		waveformType = waveformTypes[0]
 	else:
-		for waveformType in waveformTypes:
-			if entryNumber >= waveformType.lowNumber and entryNumber <= waveformType.highNumber:
-				processWaveform(entryNumber, waveformName, waveformType)
+		waveformType = None
+		for wfType in waveformTypes:
+			if entryNumber >= wfType.lowNumber and entryNumber <= wfType.highNumber:
+				waveformType = wfType
 				break
-		if not categorized:
+		if waveformType == None:
 			raise Exception('uncategorized waveform %s(%d)' % (entryName, entryNumber))
+	processWaveform(entryNumber, waveformName, waveformType)
 
 def printWaveforms(name):
 	for wfType in waveformTypes:
@@ -223,7 +225,8 @@ def doBlock(blockSpec):
 	try:
 		inputStream.seek(catalog[blockSpec.ident])
 	except:
-		print('no data of type: %s(%s)\n' % (blockSpec.name, blockSpec.ident.decode('ascii')))
+		print('no data of type: %s\n' % (blockSpec.name))
+# 		print('no data of type: %s(%s)\n' % (blockSpec.name, blockSpec.ident.decode('ascii')))
 		return
 
 	blockHdr = inputStream.read(BLOCK_HDR_LGTH)
@@ -237,16 +240,16 @@ def doBlock(blockSpec):
 	if blockSpec.ident != b'EVCE' or not voiceBlockRead:
 		for _ in range(0, nEntries):
 			if fileVersionPreXF():
-				entryHdr = inputStream.read(ENTRY_HDR_LGTH + ENTRY_FIXED_SIZE_DATA_LGTH_PRE_XF)
-				entryId, entryLgth, dataSize, dataOffset, entryNumber = \
-					struct.unpack('> 4s I 4x I 4x I I x', entryHdr)
-				entryStrs = inputStream.read(entryLgth - ENTRY_FIXED_SIZE_DATA_LGTH_PRE_XF)
+				entryFixedSizeDataLgth = ENTRY_FIXED_SIZE_DATA_LGTH_PRE_XF
+				entryHdrFormatStr = '> 4s I 4x I 4x I I x'
 				
 			else:
-				entryHdr = inputStream.read(ENTRY_HDR_LGTH + ENTRY_FIXED_SIZE_DATA_LGTH)
-				entryId, entryLgth, dataSize, dataOffset, entryNumber = \
-					struct.unpack('> 4s I 4x I 4x I I 2x', entryHdr)
-				entryStrs = inputStream.read(entryLgth - ENTRY_FIXED_SIZE_DATA_LGTH)
+				entryFixedSizeDataLgth = ENTRY_FIXED_SIZE_DATA_LGTH
+				entryHdrFormatStr = '> 4s I 4x I 4x I I 2x'
+			entryHdr = inputStream.read(ENTRY_HDR_LGTH + entryFixedSizeDataLgth)
+			entryId, entryLgth, dataSize, dataOffset, entryNumber = \
+				struct.unpack(entryHdrFormatStr, entryHdr)
+			entryStrs = inputStream.read(entryLgth - entryFixedSizeDataLgth)
 			assert entryId == BLOCK_ENTRY_ID, BLOCK_ENTRY_ID
 			entryStrsDecoded = entryStrs.decode('ascii')
 			entryName = entryStrsDecoded.rstrip('\x00').split('\x00')[0].split('\x03')[0]
@@ -267,8 +270,7 @@ def doBlock(blockSpec):
 
 	if blockSpec.printFn == None:
 		print()
-		
-	if blockSpec.printFn != None:
+	else:
 		blockSpec.printFn(blockSpec.name)
 
 def printMotifFile(fileName, selectedItems):
@@ -295,9 +297,9 @@ def printMotifFile(fileName, selectedItems):
 
 	# read file header
 	fileHdr = inputStream.read(FILE_HDR_LGTH)
-	fileHdrId, fileVersion, catalogSize = struct.unpack('> 16s 16s I 28x', fileHdr)
+	fileHdrId, fileVersionBytes, catalogSize = struct.unpack('> 16s 16s I 28x', fileHdr)
 	assert fileHdrId[0:len(FILE_HDR_ID)] == FILE_HDR_ID, FILE_HDR_ID
-	fileVersionStr = fileVersion.decode('ascii').rstrip('\x00')
+	fileVersionStr = fileVersionBytes.decode('ascii').rstrip('\x00')
 	fileVersion = tuple(map(int, fileVersionStr.split('.')))
 	
 	# build catalog
